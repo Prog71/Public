@@ -18,7 +18,7 @@ Unlike traditional launchers that fight with window managers, Glass Launcher use
 ## 📸 Screenshots
 
 ### The Apps Tab & Smart Favorites
-![Apps Tab & Favorites](Apps Tab & Favorites.png)
+![Apps Tab & Favorites](Apps-Tab-&-Favorites.png)
 
 ### Smart Right-Click Menus
 ![Favorites Menu](favorites-menu.png)
