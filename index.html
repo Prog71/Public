@@ -1,0 +1,29 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="styles.css"></head>
+<body>
+<div id="backdrop"></div>
+<div id="launcher">
+  <header>
+    <div class="title">⌘ Launcher</div>
+    <input id="search" placeholder="Type to search…" autocomplete="off">
+    <button id="tab-tools" class="tab">⚙ Tools</button>
+    <button id="tab-apps" class="tab active">▦ Apps</button>
+    <button id="close" class="tab">✕</button>
+  </header>
+  <div id="body">
+    <aside id="favs"><div class="side-title">★ Favorites</div><div id="fav-list"></div></aside>
+    <main id="grid-wrap"><div class="side-title" id="grid-title"></div><div id="grid"></div></main>
+  </div>
+  <div id="console">
+    <div class="chead">
+      <span id="console-title">Output</span>
+      <span id="console-status"></span>
+      <span class="spacer"></span>
+      <button id="console-clear" class="tab">Clear</button>
+      <button id="console-close" class="tab">✕</button>
+    </div>
+    <pre id="console-out"></pre>
+  </div>
+</div>
+<div id="ctx" class="ctx hidden"></div>
+<script src="renderer.js"></script>
+</body></html>
