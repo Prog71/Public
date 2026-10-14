@@ -36,11 +36,16 @@ Unlike traditional launchers that fight with window managers, Glass Launcher use
 We made it easy! You don't need to be a developer to use this.
 
 1. **Download the code**:
-   Click the green **<> Code** button at the top of this page and select **Download ZIP**. Extract the folder.
+   Click the green **<> Code** button at the top of this page and select **Download ZIP**.
 
-2. **Open your terminal** inside that extracted folder.
+2. **Extract the ZIP file**:
+   Double-click the downloaded ZIP file to extract it. (GitHub will name the folder something like `Public-main`).
 
-3. **Run the installer**:
+3. **Open the folder in Terminal**:
+   Open the extracted folder. Right-click anywhere in the empty space of the folder and select **"Open in Terminal"**.
+
+4. **Run the setup**:
+   In the terminal that opens, type these two commands and press Enter:
    ```bash
-   chmod +x install.sh
-   ./install.sh
+   chmod +x setup-glass.sh
+   ./setup-glass.sh
