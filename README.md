@@ -1,4 +1,4 @@
-# 🪟 Glass Launcher
+#  Glass Launcher
 
 **Glass Launcher** is a beautiful, Wayland-compatible, glass-effect app launcher for Linux. 
 
@@ -13,7 +13,7 @@ Unlike traditional launchers that fight with window managers, Glass Launcher use
 - **Drop-in Plugin System:** Add your own custom tools simply by dropping a `.json` file.
 - **Keyboard First:** `Arrow keys` to navigate, `Enter` to launch, `Escape` to dismiss.
 
-##  Screenshots
+## 📸 Screenshots
 
 ### The Main Grid & Favorites
 ![Main Grid](apps-grid.png)
@@ -24,7 +24,7 @@ Unlike traditional launchers that fight with window managers, Glass Launcher use
 ### Smart Right-Click Menus
 ![Favorites Menu](favorites-menu.png)
 
-## 🚀 Installation
+##  Installation
 
 1. **Install Node.js and npm**:
    ```bash
