@@ -29,3 +29,18 @@ Unlike traditional launchers that fight with window managers, Glass Launcher use
 
 ### Add Tool: Import Custom Script
 ![Add Tool - Import Script](add-tool-script.png)
+
+
+## 🚀 Installation
+
+We made it easy! You don't need to be a developer to use this.
+
+1. **Download the code**:
+   Click the green **<> Code** button at the top of this page and select **Download ZIP**. Extract the folder.
+
+2. **Open your terminal** inside that extracted folder.
+
+3. **Run the installer**:
+   ```bash
+   chmod +x install.sh
+   ./install.sh
