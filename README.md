@@ -30,6 +30,7 @@ Unlike traditional launchers that fight with window managers, Glass Launcher use
 ### Add Tool: Import Custom Script
 ![Add Tool - Import Script](add-tool-script.png)
 
+<video src="demo.mp4" controls width="100%"></video>
 
 ## 🚀 Installation
 
