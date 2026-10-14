@@ -15,17 +15,11 @@ Unlike traditional launchers that fight with window managers, Glass Launcher use
 
 ## 📸 Screenshots
 
-### The Main Grid & Favorites
-![Main Grid](apps-grid.png)
+### The Clean Tools Tab
+![Clean Tools Tab](tools-tab.png)
 
-### The System Tools Tab
-![System Tools](tools-view.png)
+### Add Tool: Select System App
+![Add Tool - Select App](add-tool-apps.png)
 
-### Smart Right-Click Menus
-![Favorites Menu](favorites-menu.png)
-
-##  Installation
-
-1. **Install Node.js and npm**:
-   ```bash
-   sudo apt update && sudo apt install nodejs npm -y
+### Add Tool: Import Custom Script
+![Add Tool - Import Script](add-tool-script.png)
