@@ -13,12 +13,10 @@ Unlike traditional launchers that fight with window managers, Glass Launcher use
 - **Drop-in Plugin System:** Add your own custom tools simply by dropping a `.json` file.
 - **Keyboard First:** `Arrow keys` to navigate, `Enter` to launch, `Escape` to dismiss.
 
-<video src="demo.mp4" controls width="100%"></video>
-
 ## 📸 Screenshots
 
 ### The Apps Tab & Smart Favorites
-![Apps Tab & Favorites](Apps-Tab-&-Favorites.png)
+![Apps Tab & Favorites](apps-tab.png)
 
 ### Smart Right-Click Menus
 ![Favorites Menu](favorites-menu.png)
@@ -32,7 +30,6 @@ Unlike traditional launchers that fight with window managers, Glass Launcher use
 ### Add Tool: Import Custom Script
 ![Add Tool - Import Script](add-tool-script.png)
 
-<video src="demo.mp4" controls width="100%"></video>
 
 ## 🚀 Installation
 
