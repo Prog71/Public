@@ -7,23 +7,52 @@
     <input id="search" placeholder="Type to search…" autocomplete="off">
     <button id="tab-tools" class="tab">⚙ Tools</button>
     <button id="tab-apps" class="tab active">▦ Apps</button>
-    <button id="close" class="tab">✕</button>
+    <button id="close" class="tab"></button>
   </header>
   <div id="body">
     <aside id="favs"><div class="side-title">★ Favorites</div><div id="fav-list"></div></aside>
     <main id="grid-wrap"><div class="side-title" id="grid-title"></div><div id="grid"></div></main>
   </div>
   <div id="console">
-    <div class="chead">
-      <span id="console-title">Output</span>
-      <span id="console-status"></span>
-      <span class="spacer"></span>
-      <button id="console-clear" class="tab">Clear</button>
-      <button id="console-close" class="tab">✕</button>
-    </div>
+    <div class="chead"><span id="console-title">Output</span><span id="console-status"></span><span class="spacer"></span><button id="console-clear" class="tab">Clear</button><button id="console-close" class="tab">✕</button></div>
     <pre id="console-out"></pre>
   </div>
 </div>
+
+<div id="add-tool-modal" class="modal hidden">
+  <div class="modal-content large">
+    <div class="modal-header">
+      <button id="mode-app" class="tab active">📱 Select App</button>
+      <button id="mode-script" class="tab"> Import Script</button>
+      <button id="close-modal" class="tab" style="margin-left:auto">✕</button>
+    </div>
+    <div id="modal-apps-view" class="modal-view">
+      <input type="text" id="modal-search" placeholder="Search apps..." style="width:100%; margin-bottom:10px;">
+      <div id="modal-apps-grid"></div>
+    </div>
+    <div id="modal-script-view" class="modal-view hidden" style="flex-direction:column; align-items:center; justify-content:center; gap:20px; height:100%;">
+      <p style="color:#aaa; font-size:14px;">Select a script file to add as a tool</p>
+      <button id="btn-browse" class="tab active" style="font-size:16px; padding:15px 30px;">Browse Files</button>
+    </div>
+    <div id="edit-inputs" class="modal-view hidden" style="flex-direction:column; gap:10px; padding:10px;">
+      <input type="text" id="tool-name" placeholder="Name">
+      <input type="text" id="tool-exec" placeholder="Command/Path">
+      <input type="text" id="tool-emoji" placeholder="Emoji">
+      <button id="save-tool" class="tab active" style="margin-top:10px;">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div id="delete-modal" class="modal hidden">
+  <div class="modal-content small">
+    <p id="delete-msg" style="color:#fff; font-size:15px; text-align:center; margin-bottom:15px;">Are you sure?</p>
+    <div class="modal-buttons" style="justify-content:center;">
+      <button id="confirm-delete" class="tab" style="background:#ff4757; color:white; border:none;">Delete</button>
+      <button id="cancel-delete" class="tab">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div id="ctx" class="ctx hidden"></div>
 <script src="renderer.js"></script>
 </body></html>

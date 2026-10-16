@@ -11,47 +11,62 @@ let win = null, isOpen = false, toolProc = null, isPickerOpen = false;
 function spawnSafe(cmd, args) {
   try { const p = spawn(cmd, args, { detached: true, stdio: 'ignore' }); p.on('error', () => {}); p.unref(); } catch (e) {}
 }
-function send(ch, payload) { if (win) win.webContents.send(ch, payload); }
 
 function createWindow() {
-  const wa = screen.getPrimaryDisplay().workArea;
   win = new BrowserWindow({
-    width: wa.width, height: wa.height, x: wa.x, y: wa.y, show: false,
+    width: 1000, height: 600, show: false,
     frame: false, transparent: true, backgroundColor: '#00000000',
-    resizable: true, skipTaskbar: true, hasShadow: false,
+    resizable: false, skipTaskbar: true, hasShadow: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true }
   });
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.loadFile('index.html');
-  win.webContents.once('did-finish-load', () => { if (isOpen) send('animate-in'); });
   win.on('closed', () => { win = null; });
   win.on('blur', () => { if (isOpen && !isPickerOpen) hideWin(); });
 }
+
 function showWin() { 
   if (!win) createWindow(); 
-  const wa = screen.getPrimaryDisplay().workArea;
-  win.setBounds({ x: wa.x, y: wa.y, width: wa.width, height: wa.height });
-  win.show(); win.focus(); isOpen = true; send('animate-in'); 
+  
+  // GET SCREEN DIMENSIONS
+  const display = screen.getPrimaryDisplay();
+  const workArea = display.workArea;
+  const width = 1000;
+  const height = 600;
+  
+  // CALCULATE BOTTOM CENTER POSITION
+  const x = workArea.x + (workArea.width - width) / 2;
+  const y = workArea.y + workArea.height - height - 10; // 10px from bottom
+
+  // FORCE POSITION
+  win.setBounds({ x: workArea.x, y: workArea.y, width: workArea.width, height: workArea.height });
+  win.show(); 
+  win.focus(); 
+  isOpen = true; 
+  win.webContents.send('animate-in'); 
 }
+
 function hideWin() {
   if (!win || !isOpen) return;
-  isOpen = false; send('animate-out');
+  isOpen = false; 
+  win.webContents.send('animate-out');
   setTimeout(() => { if (win && !isOpen) win.hide(); }, 240);
 }
-function toggleWin() { isOpen ? hideWin() : showWin(); }
+
+function toggleWin() { 
+  if (!win) { createWindow(); showWin(); return; }
+  if (win.isVisible() && win.isFocused()) { hideWin(); } 
+  else { showWin(); }
+}
 
 function resolveIcon(icon) {
   if (!icon) return null;
-  // If it's already a full path, just check it
   if (icon.startsWith('/')) return fs.existsSync(icon) ? icon : null;
-
   const sizes = ['scalable', '48x48', '64x64', '128x128', '256x256', '512x512'];
   const themes = ['hicolor', 'Yaru', 'Adwaita', 'ubuntu-mono-dark', 'ubuntu-mono-light'];
   const exts = ['.svg', '.png', '.xpm'];
   const dirs = ['/usr/share/icons', path.join(os.homedir(), '.local/share/icons')];
   const extraDirs = ['/var/lib/snapd/desktop/icons', '/var/lib/flatpak/exports/share/icons'];
-
-  // 1. Check standard and extra theme folders
   for (const dir of [...dirs, ...extraDirs]) {
     if (!fs.existsSync(dir)) continue;
     for (const theme of themes) {
@@ -63,13 +78,10 @@ function resolveIcon(icon) {
       }
     }
   }
-
-  // 2. Check pixmaps
   for (const ext of exts) {
     const p = `/usr/share/pixmaps/${icon}${ext}`;
     if (fs.existsSync(p)) return p;
   }
-
   return null;
 }
 
@@ -92,13 +104,10 @@ function loadApps() {
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// NEW: Strict filter for the "Select App" modal
 function loadToolApps() {
   const dirs = ['/usr/share/applications', path.join(os.homedir(), '.local', 'share', 'applications')];
   const map = new Map();
-  // Exclude these categories (Games, Media, Office, Dev, etc.)
   const excludeCats = ['AudioVideo', 'Development', 'Education', 'Game', 'Graphics', 'Office', 'Science', 'Video', 'Audio', 'Calculator', 'Clock', 'CharacterMap', 'WebBrowser', 'WebDevelopment', 'Amusement'];
-
   for (const dir of dirs) {
     if (!fs.existsSync(dir)) continue;
     for (const f of fs.readdirSync(dir)) {
@@ -109,7 +118,6 @@ function loadToolApps() {
         const mC = txt.match(/^Categories=(.+)$/m);
         if (mC) {
           const cats = mC[1].split(';');
-          // If it has ANY excluded category, skip it
           if (cats.some(c => excludeCats.includes(c.trim()))) continue;
         }
         const mN = txt.match(/^Name=(.+)$/m), mI = txt.match(/^Icon=(.+)$/m), mE = txt.match(/^Exec=(.+)$/m);
@@ -133,7 +141,7 @@ function loadTools() {
 ipcMain.handle('get-apps', () => loadApps());
 ipcMain.handle('get-favs', () => { try { return JSON.parse(fs.readFileSync(FAV_FILE, 'utf8')); } catch (e) { return []; } });
 ipcMain.handle('get-tools', () => loadTools());
-ipcMain.handle('get-tool-apps', () => loadToolApps()); // Expose new function
+ipcMain.handle('get-tool-apps', () => loadToolApps());
 
 ipcMain.on('set-favs', (e, f) => fs.writeFileSync(FAV_FILE, JSON.stringify(f)));
 ipcMain.on('hide', () => hideWin());
@@ -142,14 +150,13 @@ ipcMain.on('launch', (e, a) => { spawnSafe('gio', ['launch', a.path]); hideWin()
 ipcMain.on('run-tool', (e, t) => {
   if (t.mode === 'launch') { spawnSafe('gio', ['launch', t.exec]); hideWin(); return; }
   if (t.mode === 'exec') { spawnSafe('bash', ['-c', t.exec]); hideWin(); return; }
-  
   if (toolProc) { try { toolProc.kill('SIGTERM'); } catch (e) {} toolProc = null; }
-  send('tool-start', t.name);
+  win.webContents.send('tool-start', t.name);
   const p = spawn('bash', ['-c', t.exec]);
   toolProc = p;
-  p.stdout.on('data', d => send('tool-output', d.toString()));
-  p.stderr.on('data', d => send('tool-output', d.toString()));
-  p.on('close', code => { send('tool-end', code); toolProc = null; });
+  p.stdout.on('data', d => win.webContents.send('tool-output', d.toString()));
+  p.stderr.on('data', d => win.webContents.send('tool-output', d.toString()));
+  p.on('close', code => { win.webContents.send('tool-end', code); toolProc = null; });
 });
 ipcMain.on('tool-close', () => { if (toolProc) { try { toolProc.kill('SIGTERM'); } catch (e) {} toolProc = null; } });
 
@@ -176,7 +183,7 @@ ipcMain.handle('import-script', async () => {
   const name = path.basename(filePath, path.extname(filePath)).replace(/[-_]/g, ' ');
   if (!fs.existsSync(TOOLS_DIR)) fs.mkdirSync(TOOLS_DIR, { recursive: true });
   const id = 'custom-' + Date.now();
-  const tool = { id, name, emoji: '📜', exec: `bash "${filePath}"`, mode: 'console', order: 999 };
+  const tool = { id, name, emoji: '', exec: `bash "${filePath}"`, mode: 'console', order: 999 };
   fs.writeFileSync(path.join(TOOLS_DIR, id + '.json'), JSON.stringify(tool, null, 2));
   return tool;
 });

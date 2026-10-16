@@ -3,8 +3,9 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 let apps = [], favs = [], tools = [], toolApps = [], view = 'apps', items = [], sel = -1, editingToolId = null, toolToDelete = null;
 const COLS = 6;
 
-window.api.onShow(() => { $('#backdrop').classList.add('open'); $('#launcher').classList.add('open'); refresh(); });
-window.api.onHide(() => { $('#backdrop').classList.remove('open'); $('#launcher').classList.remove('open'); });
+window.api.onShow(() => { $('#launcher').classList.add('open'); refresh(); });
+window.api.onHide(() => { $('#launcher').classList.remove('open'); });
+
 $('#backdrop').onclick = () => window.api.hide();
 
 window.api.onToolStart(n => { $('#console').classList.add('open'); $('#console-out').textContent = ''; $('#console-title').textContent = n; $('#console-status').textContent = 'running…'; });
@@ -29,6 +30,7 @@ function setView(v){
   $('#tab-apps').classList.toggle('active', v === 'apps');
   $('#tab-tools').classList.toggle('active', v === 'tools');
   $('#launcher').classList.toggle('tools-mode', v === 'tools');
+  $('#favs').style.display = v === 'apps' ? 'flex' : 'none'; // Hide sidebar in tools
   render();
 }
 
@@ -61,7 +63,7 @@ function render(){
           <button class="action-btn btn-edit" title="Edit">✏️</button>
           <button class="action-btn btn-del" title="Delete">🗑️</button>
         </div>`;
-      card.onclick = (e) => { if (!e.target.closest('.action-btn')) window.api.runTool(t); };
+      card.onclick = (e) => { if (!e.target.closest('.action-btn')) window.api.runTool(t); }; // Click to run
       card.querySelector('.btn-edit').onclick = (e) => { e.stopPropagation(); openEditModal(t); };
       card.querySelector('.btn-del').onclick = (e) => { 
         e.stopPropagation(); 
@@ -89,7 +91,6 @@ function ctxMenuApp(e, app) {
   ctx.classList.remove('hidden');
   ctx.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
   ctx.style.top = Math.min(e.clientY, window.innerHeight - 50) + 'px';
-  
   const action = isFav ? document.getElementById('ctx-rm-fav') : document.getElementById('ctx-add-fav');
   action.onclick = () => {
     if (isFav) favs = favs.filter(id => id !== app.id);
@@ -127,7 +128,7 @@ function renderModalApps(query) {
     const card = document.createElement('div'); card.className = 'modal-app-card';
     card.innerHTML = (a.icon ? `<img src="file://${esc(a.icon)}">` : '<div style="font-size:30px"></div>') + `<span>${esc(a.name)}</span>`;
     card.onclick = () => {
-      window.api.addTool({ name: a.name, exec: a.path, emoji: '⚙️', mode: 'launch' });
+      window.api.addTool({ name: a.name, exec: a.path, emoji: '️', mode: 'launch' });
       $('#add-tool-modal').classList.add('hidden');
       refresh();
     };
