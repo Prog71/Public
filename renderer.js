@@ -3,8 +3,8 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 let apps = [], favs = [], tools = [], toolApps = [], view = 'apps', items = [], sel = -1, editingToolId = null, toolToDelete = null;
 const COLS = 6;
 
-window.api.onShow(() => { $('#launcher').classList.add('open'); refresh(); });
-window.api.onHide(() => { $('#launcher').classList.remove('open'); });
+window.api.onShow(() => { $('#backdrop').classList.add('open'); $('#launcher').classList.add('open'); refresh(); });
+window.api.onHide(() => { $('#backdrop').classList.remove('open'); $('#launcher').classList.remove('open'); });
 
 $('#backdrop').onclick = () => window.api.hide();
 

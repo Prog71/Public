@@ -26,12 +26,16 @@ function createWindow() {
 }
 
 function positionWin() {
-  // Anchor the compact 1000x600 window to the bottom-left of the work area so the
-  // CSS panel (left: 20px, bottom: 120px) lands above the dock, and clicks outside
-  // the window fire blur (blur-to-close).
+  // On Wayland, Mutter ignores client x/y (setBounds position is a no-op) and centers
+  // any window, so the old 1000x600 window floated mid-screen. Instead, size the
+  // transparent window to the whole work area — size IS honored on Wayland — so it
+  // fills the screen and the CSS panel (left: 20px, bottom: 120px) lands at the true
+  // bottom-left, above the dock (Windows Start-button position). The full-screen
+  // backdrop then catches every click outside the panel (click-away-to-close), while
+  // blur still closes the launcher when another window gets focus.
   if (!win) return;
-  const workArea = screen.getPrimaryDisplay().workArea;
-  win.setBounds({ x: workArea.x, y: workArea.y + workArea.height - 600, width: 1000, height: 600 });
+  const wa = screen.getPrimaryDisplay().workArea;
+  win.setBounds({ x: wa.x, y: wa.y, width: wa.width, height: wa.height });
 }
 
 function showWin() {
@@ -47,7 +51,7 @@ function hideWin() {
   if (!win || !isOpen) return;
   isOpen = false; 
   win.webContents.send('animate-out');
-  setTimeout(() => { if (win && !isOpen) win.hide(); }, 240);
+  setTimeout(() => { if (win && !isOpen) win.hide(); }, 300); // let the slide-out finish
 }
 
 function toggleWin() {
