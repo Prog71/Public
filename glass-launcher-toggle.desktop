@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Launcher
+Comment=Drop-up system launcher — click toggles it open/closed
+Exec=/usr/local/bin/launcher-toggle
+Icon=applications-other
+Terminal=false
+Type=Application
+Categories=System;Utility;
+StartupNotify=false
