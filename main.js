@@ -7,6 +7,7 @@ const { spawn } = require('child_process');
 const FAV_FILE = path.join(os.homedir(), '.config', 'launcher-favorites.json');
 const TOOLS_DIR = path.join(os.homedir(), '.config', 'system-launcher', 'tools');
 let win = null, isOpen = false, toolProc = null, isPickerOpen = false;
+let hideTimer = null, blurTimer = null; // deferred-hide plumbing (dock-button toggle race)
 
 function spawnSafe(cmd, args) {
   try { const p = spawn(cmd, args, { detached: true, stdio: 'ignore' }); p.on('error', () => {}); p.unref(); } catch (e) {}
@@ -22,7 +23,16 @@ function createWindow() {
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.loadFile('index.html');
   win.on('closed', () => { win = null; });
-  win.on('blur', () => { if (isOpen && !isPickerOpen) hideWin(); });
+  win.on('focus', () => { if (blurTimer) { clearTimeout(blurTimer); blurTimer = null; } }); // refocused within the deferral window
+  win.on('blur', () => {
+    if (!isOpen || isPickerOpen) return;
+    // Defer focus-loss close 250ms: clicking the dock button blurs us first and
+    // then 'second-instance' toggles — within this window that toggle IS the
+    // close (toggleWin takes the hide branch), so the click pops down instead
+    // of hiding and instantly re-opening.
+    if (blurTimer) clearTimeout(blurTimer);
+    blurTimer = setTimeout(() => { blurTimer = null; hideWin(); }, 250);
+  });
 }
 
 function positionWin() {
@@ -49,9 +59,11 @@ function showWin() {
 
 function hideWin() {
   if (!win || !isOpen) return;
-  isOpen = false; 
+  isOpen = false;
+  if (blurTimer) { clearTimeout(blurTimer); blurTimer = null; }
+  if (hideTimer) clearTimeout(hideTimer);
   win.webContents.send('animate-out');
-  setTimeout(() => { if (win && !isOpen) win.hide(); }, 300); // let the slide-out finish
+  hideTimer = setTimeout(() => { hideTimer = null; if (win && !isOpen) win.hide(); }, 300); // let the slide-out finish
 }
 
 function toggleWin() {
