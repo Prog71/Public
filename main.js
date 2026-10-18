@@ -7,7 +7,7 @@ const { spawn } = require('child_process');
 const FAV_FILE = path.join(os.homedir(), '.config', 'launcher-favorites.json');
 const TOOLS_DIR = path.join(os.homedir(), '.config', 'system-launcher', 'tools');
 let win = null, isOpen = false, toolProc = null, isPickerOpen = false;
-let hideTimer = null, blurTimer = null; // deferred-hide plumbing (dock-button toggle race)
+let hideTimer = null, blurTimer = null, dockCloseAt = 0; // deferred-hide plumbing + dock-click detection
 
 function spawnSafe(cmd, args) {
   try { const p = spawn(cmd, args, { detached: true, stdio: 'ignore' }); p.on('error', () => {}); p.unref(); } catch (e) {}
@@ -23,13 +23,27 @@ function createWindow() {
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.loadFile('index.html');
   win.on('closed', () => { win = null; });
-  win.on('focus', () => { if (blurTimer) { clearTimeout(blurTimer); blurTimer = null; } }); // refocused within the deferral window
+  win.on('focus', () => {
+    // A refocus right after a dock-cursor blur is the dock icon's own activate
+    // (shell focuses our window instead of spawning a second instance) — keep
+    // the close pending. A real refocus (alt-tab back) cancels it.
+    if (!dockCloseAt || Date.now() - dockCloseAt > 400) {
+      if (blurTimer) { clearTimeout(blurTimer); blurTimer = null; }
+    }
+  });
   win.on('blur', () => {
     if (!isOpen || isPickerOpen) return;
-    // Defer focus-loss close 250ms: clicking the dock button blurs us first and
-    // then 'second-instance' toggles — within this window that toggle IS the
-    // close (toggleWin takes the hide branch), so the click pops down instead
-    // of hiding and instantly re-opening.
+    // Clicking our dock icon blurs us and the shell then re-activates (focuses)
+    // the window instead of spawning a second instance. Detect "cursor on the
+    // bottom dock strip" so that close-out runs through that refocus, unlike
+    // a plain alt-tab back.
+    try {
+      const wa = screen.getPrimaryDisplay().workArea;
+      const p = screen.getCursorScreenPoint();
+      if (p.y >= wa.y + wa.height - 8) dockCloseAt = Date.now();
+    } catch (e) {}
+    // Defer focus-loss close 250ms: keyboard-shortcut clicks arrive as
+    // 'second-instance' and toggle — within this window that toggle IS the close.
     if (blurTimer) clearTimeout(blurTimer);
     blurTimer = setTimeout(() => { blurTimer = null; hideWin(); }, 250);
   });
@@ -50,6 +64,7 @@ function positionWin() {
 
 function showWin() {
   if (!win) createWindow();
+  dockCloseAt = 0;
   positionWin();
   isOpen = true;
   win.show();
@@ -212,6 +227,9 @@ ipcMain.handle('import-script', async () => {
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) { app.quit(); }
 else {
-  app.on('second-instance', () => toggleWin());
+  app.on('second-instance', () => {
+    if (dockCloseAt && Date.now() - dockCloseAt < 700) return; // dock re-launched us right after its own toggle-close — swallow
+    toggleWin();
+  });
   app.whenReady().then(() => { createWindow(); if (!process.env.LAUNCHER_HIDDEN) showWin(); });
 }
