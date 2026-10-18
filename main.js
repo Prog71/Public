@@ -16,7 +16,7 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1000, height: 600, show: false,
     frame: false, transparent: true, backgroundColor: '#00000000',
-    resizable: false, skipTaskbar: true, hasShadow: true,
+    resizable: false, skipTaskbar: true, hasShadow: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true }
   });
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -25,25 +25,22 @@ function createWindow() {
   win.on('blur', () => { if (isOpen && !isPickerOpen) hideWin(); });
 }
 
-function showWin() { 
-  if (!win) createWindow(); 
-  
-  // GET SCREEN DIMENSIONS
-  const display = screen.getPrimaryDisplay();
-  const workArea = display.workArea;
-  const width = 1000;
-  const height = 600;
-  
-  // CALCULATE BOTTOM CENTER POSITION
-  const x = workArea.x + (workArea.width - width) / 2;
-  const y = workArea.y + workArea.height - height - 10; // 10px from bottom
+function positionWin() {
+  // Anchor the compact 1000x600 window to the bottom-left of the work area so the
+  // CSS panel (left: 20px, bottom: 120px) lands above the dock, and clicks outside
+  // the window fire blur (blur-to-close).
+  if (!win) return;
+  const workArea = screen.getPrimaryDisplay().workArea;
+  win.setBounds({ x: workArea.x, y: workArea.y + workArea.height - 600, width: 1000, height: 600 });
+}
 
-  // FORCE POSITION
-  win.setBounds({ x: workArea.x, y: workArea.y, width: workArea.width, height: workArea.height });
-  win.show(); 
-  win.focus(); 
-  isOpen = true; 
-  win.webContents.send('animate-in'); 
+function showWin() {
+  if (!win) createWindow();
+  positionWin();
+  isOpen = true;
+  win.show();
+  win.focus();
+  win.webContents.send('animate-in');
 }
 
 function hideWin() {
@@ -53,10 +50,18 @@ function hideWin() {
   setTimeout(() => { if (win && !isOpen) win.hide(); }, 240);
 }
 
-function toggleWin() { 
+function toggleWin() {
   if (!win) { createWindow(); showWin(); return; }
-  if (win.isVisible() && win.isFocused()) { hideWin(); } 
-  else { showWin(); }
+  if (isOpen && win.isVisible()) {
+    hideWin();
+  } else {
+    isOpen = true;
+    isPickerOpen = false;
+    positionWin();
+    win.show();
+    win.focus(); // Crucial for blur-to-close behavior
+    win.webContents.send('animate-in');
+  }
 }
 
 function resolveIcon(icon) {

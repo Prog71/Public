@@ -177,20 +177,47 @@ function setSel(i){
 window.addEventListener('keydown', e => {
   if (e.key === 'Escape'){ $('#add-tool-modal').classList.add('hidden'); $('#delete-modal').classList.add('hidden'); window.api.hide(); e.preventDefault(); return; }
   if (['ArrowDown','ArrowUp','ArrowLeft','ArrowRight'].includes(e.key)){
-    e.preventDefault(); if (!items.length) return; if (sel < 0){ setSel(0); return; }
-    const favCount = items.filter(x => x.zone === 'fav').length; let i = sel; const inFav = items[i].zone === 'fav';
-    if (e.key === 'ArrowDown') i = inFav ? Math.min(i+1, favCount-1) : Math.min(i+COLS, items.length-1);
-    if (e.key === 'ArrowUp')   i = inFav ? Math.max(i-1, 0) : (i-COLS < favCount ? Math.max(favCount-1,0) : i-COLS);
-    if (e.key === 'ArrowRight')i = inFav ? favCount : Math.min(i+1, items.length-1);
-    if (e.key === 'ArrowLeft') i = inFav ? i : (i-1 < favCount ? Math.max(favCount-1,0) : i-1);
-    setSel(i); return;
+    e.preventDefault();
+    if (!items.length) return;
+    if (sel < 0) { setSel(0); return; }
+
+    const favCount = items.filter(x => x.zone === 'fav').length;
+    let i = sel;
+    const inFav = i < favCount;
+
+    if (e.key === 'ArrowDown') {
+      if (inFav) { i = (i + 1 < favCount) ? i + 1 : favCount; } // Down in fav, or jump to grid
+      else { i = Math.min(i + COLS, items.length - 1); } // Down in grid
+    }
+    else if (e.key === 'ArrowUp') {
+      if (inFav) { i = Math.max(i - 1, 0); } // Up in fav
+      else { i = (i - COLS < favCount) ? favCount - 1 : i - COLS; } // Up in grid, or jump to last fav
+    }
+    else if (e.key === 'ArrowRight') {
+      if (inFav) { i = favCount; } // Jump to start of grid
+      else { i = Math.min(i + 1, items.length - 1); } // Right in grid
+    }
+    else if (e.key === 'ArrowLeft') {
+      if (inFav) { i = Math.max(i - 1, 0); } // Left in fav
+      else { i = (i % COLS === 0) ? favCount - 1 : i - 1; } // Left in grid, or jump to last fav
+    }
+    setSel(i);
+    return;
   }
-  if (e.key === 'Enter'){ e.preventDefault(); const it = sel >= 0 ? items[sel] : items[0]; if (it) { it.tool ? window.api.runTool(it.app) : window.api.launch(it.app); } }
+  if (e.key === 'Enter'){
+    e.preventDefault();
+    const active = document.activeElement;
+    if (active && (active.id === 'tab-apps' || active.id === 'tab-tools')) { active.click(); return; }
+    const it = sel >= 0 ? items[sel] : items[0];
+    if (it) { it.tool ? window.api.runTool(it.app) : window.api.launch(it.app); }
+  }
 });
 
 document.addEventListener('click', (e) => { if(!e.target.closest('#ctx')) document.getElementById('ctx').classList.add('hidden'); });
 
+$('#tab-apps').tabIndex = 0;
 $('#tab-apps').onclick = () => setView('apps');
+$('#tab-tools').tabIndex = 0;
 $('#tab-tools').onclick = () => setView('tools');
 $('#close').onclick = () => window.api.hide();
 $('#search').addEventListener('input', () => render());
