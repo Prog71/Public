@@ -1,7 +1,7 @@
 #  Glass Launcher
 
 > 🚧 **v0.9 in progress** — [M1/P2: the 3-column *Start Menu* layout](ROADMAP.md) is being built right now.
-> Stable P1 release: [`glass-m1-p1-stable`](https://github.com/Prog71/Public/tree/glass-m1-p1-stable) · Plan: [ROADMAP.md](ROADMAP.md) · Handover: [HANDOVER.md](HANDOVER.md)
+> Stable P1 release: [`glass-m1-p1-stable`](https://github.com/Prog71/Public/tree/glass-m1-p1-stable) · Plan: [ROADMAP.md](ROADMAP.md)
 
 **Glass Launcher** is a beautiful, Wayland-compatible, glass-effect app launcher for Linux. 
 

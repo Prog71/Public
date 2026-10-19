@@ -1,2 +1,8 @@
 node_modules/
 glass-launcher/
+
+# Owner policy: GitHub carries app files only — maintainer internals & secrets stay local
+HANDOVER.md
+github_token.txt
+github-token.txt
+
