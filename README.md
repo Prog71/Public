@@ -1,5 +1,8 @@
 #  Glass Launcher
 
+> 🚧 **v0.9 in progress** — [M1/P2: the 3-column *Start Menu* layout](ROADMAP.md) is being built right now.
+> Stable P1 release: [`glass-m1-p1-stable`](https://github.com/Prog71/Public/tree/glass-m1-p1-stable) · Plan: [ROADMAP.md](ROADMAP.md) · Handover: [HANDOVER.md](HANDOVER.md)
+
 **Glass Launcher** is a beautiful, Wayland-compatible, glass-effect app launcher for Linux. 
 
 Unlike traditional launchers that fight with window managers, Glass Launcher uses a transparent, hardware-accelerated window with smooth CSS animations to deliver a buttery-smooth, macOS-style "drop-up" experience.
@@ -8,15 +11,15 @@ Unlike traditional launchers that fight with window managers, Glass Launcher use
 
 - **Real Glassmorphism:** Transparent, blurred background with your live desktop showing through.
 - **Wayland & X11 Compatible:** Works perfectly on modern Linux distributions without fighting the window manager.
-- **Smart Favorites:** Right-click any app to pin it. Pinned apps get their own dedicated sidebar.
-- **Embedded Console Drawer:** Run system maintenance tools and watch the output stream live inside the launcher.
+- **Smart Favorites:** Right-click any app to pin it — pinned apps live in their own dedicated **PINNED** column.
+- **Embedded Console Drawer:** Run system tools and watch output stream live — expands for long logs, tucks away when you switch to Apps, and shows a live dot on the Tools tab.
 - **Drop-in Plugin System:** Add your own custom tools simply by dropping a `.json` file.
 - **Keyboard First:** `Arrow keys` to navigate, `Enter` to launch, `Escape` to dismiss.
 
 ## 📸 Screenshots
 
 ### The Apps Tab & Smart Favorites
-![Apps Tab & Favorites](apps-tab.png)
+![Apps Tab & Favorites](apps-grid.png)
 
 ### Smart Right-Click Menus
 ![Favorites Menu](favorites-menu.png)
