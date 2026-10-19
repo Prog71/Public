@@ -133,6 +133,7 @@ function loadApps() {
         if (/^NoDisplay=true/m.test(txt)) continue;
         const mN = txt.match(/^Name=(.+)$/m), mI = txt.match(/^Icon=(.+)$/m), mE = txt.match(/^Exec=(.+)$/m);
         if (!mN || !mE) continue;
+        if (mE[1].includes('launcher-toggle')) continue; // never list the launcher's own dock-toggle entry in its own grid
         map.set(f, { id: f, name: mN[1].trim(), icon: resolveIcon(mI ? mI[1].trim() : null), path: path.join(dir, f) });
       } catch (e) {}
     }
@@ -158,6 +159,7 @@ function loadToolApps() {
         }
         const mN = txt.match(/^Name=(.+)$/m), mI = txt.match(/^Icon=(.+)$/m), mE = txt.match(/^Exec=(.+)$/m);
         if (!mN || !mE) continue;
+        if (mE[1].includes('launcher-toggle')) continue; // same self-listing filter as loadApps
         map.set(f, { id: f, name: mN[1].trim(), icon: resolveIcon(mI ? mI[1].trim() : null), path: path.join(dir, f) });
       } catch (e) {}
     }
