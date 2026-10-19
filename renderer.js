@@ -8,12 +8,18 @@ window.api.onHide(() => { $('#backdrop').classList.remove('open'); $('#launcher'
 
 $('#backdrop').onclick = () => window.api.hide();
 
-window.api.onToolStart(n => { $('#console').classList.add('open'); $('#console-out').textContent = ''; $('#console-title').textContent = n; $('#console-status').textContent = 'running…'; });
-let outLines = [], outCur = '';
+let outLines = [], outCur = '', consoleOpen = false, consoleRunning = false;
 function paintConsole(){ const pre = $('#console-out'); pre.textContent = outLines.join('\n') + (outCur ? (outLines.length ? '\n' : '') + outCur : ''); pre.scrollTop = pre.scrollHeight; }
+function syncConsoleTab(){
+  $('#console').classList.toggle('tab-hidden', view !== 'tools'); // tuck away outside Tools; tool keeps running
+  const dot = $('#tab-tools-dot');
+  dot.classList.toggle('hidden', !consoleOpen);
+  dot.classList.toggle('running', consoleRunning);
+}
+window.api.onToolStart(n => { consoleOpen = true; consoleRunning = true; outLines = []; outCur = ''; $('#console').classList.add('open'); $('#console-out').textContent = ''; $('#console-title').textContent = n; $('#console-status').textContent = 'running…'; syncConsoleTab(); });
 window.api.onToolOutput(t => { for (const c of t){ if (c === '\n'){ outLines.push(outCur); outCur = ''; } else if (c === '\r'){ outCur = ''; } else outCur += c; } paintConsole(); });
-window.api.onToolEnd(c => { $('#console-status').textContent = (c === 0 ? '✓ finished' : ' exit ' + c); });
-$('#console-close').onclick = () => { window.api.toolClose(); $('#console').classList.remove('open'); };
+window.api.onToolEnd(c => { consoleRunning = false; $('#console-status').textContent = (c === 0 ? '✓ finished' : ' exit ' + c); syncConsoleTab(); });
+$('#console-close').onclick = () => { window.api.toolClose(); consoleOpen = false; $('#console').classList.remove('open'); syncConsoleTab(); };
 $('#console-clear').onclick = () => { outLines = []; outCur = ''; paintConsole(); };
 
 async function refresh(){ 
@@ -31,6 +37,7 @@ function setView(v){
   $('#tab-tools').classList.toggle('active', v === 'tools');
   $('#launcher').classList.toggle('tools-mode', v === 'tools');
   $('#favs').style.display = v === 'apps' ? 'flex' : 'none'; // Hide sidebar in tools
+  syncConsoleTab(); // tuck the console drawer away outside the Tools tab
   render();
 }
 
