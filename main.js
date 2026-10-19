@@ -121,8 +121,32 @@ function resolveIcon(icon) {
   return null;
 }
 
+function appDataDirs() {
+  // Mirror where the OS App Grid looks: XDG_DATA_HOME first (user overrides win),
+  // then every XDG_DATA_DIRS entry (system, Flatpak, Snap exports).
+  const home = process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share');
+  const dirs = [path.join(home, 'applications')];
+  for (const d of (process.env.XDG_DATA_DIRS || '/usr/local/share:/usr/share').split(':')) {
+    if (d) dirs.push(path.join(d.trim(), 'applications'));
+  }
+  return [...new Set(dirs)];
+}
+
+function isShowable(txt) {
+  // GIO GAppInfo should_show(): honor NoDisplay/Hidden, Type and desktop-environment restrictions
+  if (/^NoDisplay=true/m.test(txt) || /^Hidden=true/m.test(txt)) return false;
+  const mT = txt.match(/^Type=(.+)$/m);
+  if (mT && mT[1].trim() !== 'Application') return false;
+  const des = (process.env.XDG_CURRENT_DESKTOP || '').split(':').filter(Boolean);
+  const mOnly = txt.match(/^OnlyShowIn=(.+)$/m);
+  if (mOnly && !mOnly[1].split(';').some(x => des.includes(x.trim()))) return false;
+  const mNot = txt.match(/^NotShowIn=(.+)$/m);
+  if (mNot && mNot[1].split(';').some(x => des.includes(x.trim()))) return false;
+  return true;
+}
+
 function loadApps() {
-  const dirs = ['/usr/share/applications', path.join(os.homedir(), '.local', 'share', 'applications')];
+  const dirs = appDataDirs();
   const map = new Map();
   for (const dir of dirs) {
     if (!fs.existsSync(dir)) continue;
@@ -130,7 +154,7 @@ function loadApps() {
       if (!f.endsWith('.desktop') || map.has(f)) continue;
       try {
         const txt = fs.readFileSync(path.join(dir, f), 'utf8');
-        if (/^NoDisplay=true/m.test(txt)) continue;
+        if (!isShowable(txt)) continue;
         const mN = txt.match(/^Name=(.+)$/m), mI = txt.match(/^Icon=(.+)$/m), mE = txt.match(/^Exec=(.+)$/m);
         if (!mN || !mE) continue;
         if (mE[1].includes('launcher-toggle')) continue; // never list the launcher's own dock-toggle entry in its own grid
@@ -142,7 +166,7 @@ function loadApps() {
 }
 
 function loadToolApps() {
-  const dirs = ['/usr/share/applications', path.join(os.homedir(), '.local', 'share', 'applications')];
+  const dirs = appDataDirs();
   const map = new Map();
   const excludeCats = ['AudioVideo', 'Development', 'Education', 'Game', 'Graphics', 'Office', 'Science', 'Video', 'Audio', 'Calculator', 'Clock', 'CharacterMap', 'WebBrowser', 'WebDevelopment', 'Amusement'];
   for (const dir of dirs) {
@@ -151,7 +175,7 @@ function loadToolApps() {
       if (!f.endsWith('.desktop') || map.has(f)) continue;
       try {
         const txt = fs.readFileSync(path.join(dir, f), 'utf8');
-        if (/^NoDisplay=true/m.test(txt)) continue;
+        if (!isShowable(txt)) continue;
         const mC = txt.match(/^Categories=(.+)$/m);
         if (mC) {
           const cats = mC[1].split(';');
