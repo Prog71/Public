@@ -12,6 +12,7 @@ let outLines = [], outCur = '', consoleOpen = false, consoleRunning = false;
 function paintConsole(){ const pre = $('#console-out'); pre.textContent = outLines.join('\n') + (outCur ? (outLines.length ? '\n' : '') + outCur : ''); pre.scrollTop = pre.scrollHeight; }
 function syncConsoleTab(){
   $('#console').classList.toggle('tab-hidden', view !== 'tools'); // tuck away outside Tools; tool keeps running
+  if (view !== 'tools') { $('#console').classList.remove('expanded'); $('#console-expand').textContent = '⤢'; } // leaving Tools restores original size
   const dot = $('#tab-tools-dot');
   dot.classList.toggle('hidden', !consoleOpen);
   dot.classList.toggle('running', consoleRunning);
@@ -21,6 +22,7 @@ window.api.onToolOutput(t => { for (const c of t){ if (c === '\n'){ outLines.pus
 window.api.onToolEnd(c => { consoleRunning = false; $('#console-status').textContent = (c === 0 ? '✓ finished' : ' exit ' + c); syncConsoleTab(); });
 $('#console-close').onclick = () => { window.api.toolClose(); consoleOpen = false; $('#console').classList.remove('open'); syncConsoleTab(); };
 $('#console-clear').onclick = () => { outLines = []; outCur = ''; paintConsole(); };
+$('#console-expand').onclick = () => { const on = $('#console').classList.toggle('expanded'); $('#console-expand').textContent = on ? '⤡' : '⤢'; };
 
 async function refresh(){ 
   apps = await window.api.getApps(); 
