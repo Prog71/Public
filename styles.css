@@ -48,7 +48,16 @@ aside { width: 220px; border-right: 1px solid rgba(255,255,255,0.05); padding: 1
 .fav-row.sel, .fav-row.sel:hover { background: rgba(78, 161, 255, 0.2); outline: 2px solid #4ea1ff; outline-offset: -2px; } /* keyboard selection, mirrors .card.sel */
 .fav-row img { width: 24px; height: 24px; border-radius: 4px; }
 
-main { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; }
+main { flex: 1; padding: 15px; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+#grid-wrap { display: flex; flex: 1; min-height: 0; gap: 4px; }
+#grid { flex: 1; overflow-y: auto; }
+/* ---- P2 Step 4: A-Z letter jumpers on the right edge of All Apps ---- */
+#jumpers { flex: 0 0 18px; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 2px 0; overflow: hidden; user-select: none; }
+#jumpers span { font-size: 10px; line-height: 1.35; color: #5c5c63; cursor: pointer; padding: 0 3px; border-radius: 3px; }
+#jumpers span:hover { color: #fff; background: rgba(255,255,255,0.1); }
+#jumpers span.lit { color: #4ea1ff; font-weight: 600; }
+#jumpers span.dim { opacity: 0.3; cursor: default; }
+#jumpers span.dim:hover { color: #5c5c63; background: transparent; }
 #grid-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 10px; font-weight: 600; }
 #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
 

@@ -70,6 +70,7 @@ function render(){
       card.innerHTML = (a.icon ? `<img src="file://${esc(a.icon)}">` : '<div class="ph">📦</div>') + `<span title="${esc(a.name)}">${esc(a.name)}</span>`;
       card.onclick = () => window.api.launch(a);
       card.oncontextmenu = (e) => ctxMenuApp(e, a);
+      card.dataset.letter = (a.name || '?').trim().charAt(0).toUpperCase(); // P2 Step 4: letter-group anchor
       grid.appendChild(card); items.push({el:card, app:a, zone:'grid'});
     });
   } else {
@@ -96,8 +97,47 @@ function render(){
     addCard.onclick = () => openAddModal();
     grid.appendChild(addCard);
   }
+  paintJumpers();
   setSel(-1);
 }
+
+// ---- P2 Step 4: A-Z letter jumpers (Apps view only; hidden in Tools view) ----
+function paintJumpers(){
+  const bar = document.querySelector('#jumpers');
+  if (!bar) return;
+  if (view !== 'apps') { bar.innerHTML = ''; bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  const present = new Set([...document.querySelectorAll('#grid .card')].map(c => c.dataset.letter).filter(Boolean));
+  bar.innerHTML = '';
+  for (let c = 65; c <= 90; c++) {
+    const L = String.fromCharCode(c);
+    const s = document.createElement('span');
+    s.textContent = L;
+    if (!present.has(L)) { s.classList.add('dim'); }
+    else { s.onclick = () => jumpToLetter(L); }
+    bar.appendChild(s);
+  }
+  highlightJumper();
+}
+
+function jumpToLetter(L){
+  const target = [...document.querySelectorAll('#grid .card')].find(c => c.dataset.letter === L);
+  if (target) { target.scrollIntoView({block:'start'}); highlightJumper(L); }
+}
+
+function highlightJumper(force){
+  const bar = document.querySelector('#jumpers');
+  if (!bar || !bar.children.length) return;
+  let cur = force;
+  if (!cur) {
+    const grid = document.querySelector('#grid');
+    const top = grid.scrollTop;
+    cur = [...document.querySelectorAll('#grid .card')].reverse().find(c => c.offsetTop - grid.offsetTop <= top + 8)?.dataset.letter;
+  }
+  [...bar.children].forEach(s => s.classList.toggle('lit', s.textContent === cur));
+}
+
+document.querySelector('#grid')?.addEventListener('scroll', () => requestAnimationFrame(() => highlightJumper()), {passive:true});
 
 function ctxMenuApp(e, app) {
   e.preventDefault();
