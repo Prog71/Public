@@ -102,7 +102,8 @@ function resolveIcon(icon) {
   const themes = ['hicolor', 'Yaru', 'Adwaita', 'ubuntu-mono-dark', 'ubuntu-mono-light'];
   const exts = ['.svg', '.png', '.xpm'];
   const dirs = ['/usr/share/icons', path.join(os.homedir(), '.local/share/icons')];
-  const extraDirs = ['/var/lib/snapd/desktop/icons', '/var/lib/flatpak/exports/share/icons'];
+  // Every XDG data root's icons/ dir (system, /usr/local, Flatpak user+system exports) + Snap
+  const extraDirs = [...xdgDataDirs().map((d) => path.join(d, 'icons')), '/var/lib/snapd/desktop/icons'];
   for (const dir of [...dirs, ...extraDirs]) {
     if (!fs.existsSync(dir)) continue;
     for (const theme of themes) {
@@ -121,15 +122,19 @@ function resolveIcon(icon) {
   return null;
 }
 
-function appDataDirs() {
-  // Mirror where the OS App Grid looks: XDG_DATA_HOME first (user overrides win),
-  // then every XDG_DATA_DIRS entry (system, Flatpak, Snap exports).
+function xdgDataDirs() {
+  // XDG data roots in GIO precedence order: XDG_DATA_HOME first (user overrides win),
+  // then every XDG_DATA_DIRS entry (system, Flatpak exports, Snap exports).
   const home = process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share');
-  const dirs = [path.join(home, 'applications')];
+  const dirs = [home];
   for (const d of (process.env.XDG_DATA_DIRS || '/usr/local/share:/usr/share').split(':')) {
-    if (d) dirs.push(path.join(d.trim(), 'applications'));
+    if (d) dirs.push(d.trim());
   }
   return [...new Set(dirs)];
+}
+
+function appDataDirs() {
+  return xdgDataDirs().map((d) => path.join(d, 'applications'));
 }
 
 function isShowable(txt) {
