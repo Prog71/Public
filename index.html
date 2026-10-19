@@ -4,14 +4,17 @@
 <div id="launcher">
   <header>
     <div class="title">⌘ Launcher</div>
-    <input id="search" placeholder="Type to search…" autocomplete="off">
+    <input id="search" placeholder="Search apps, tools, commands…" autocomplete="off">
     <button id="tab-tools" class="tab">⚙ Tools<span id="tab-tools-dot" class="hidden"></span></button>
     <button id="tab-apps" class="tab active">▦ Apps</button>
     <button id="close" class="tab"></button>
   </header>
   <div id="body">
-    <aside id="favs"><div class="side-title">★ Favorites</div><div id="fav-list"></div></aside>
-    <main id="grid-wrap"><div class="side-title" id="grid-title"></div><div id="grid"></div></main>
+    <div id="cols">
+      <aside id="favs" class="col"><div class="side-title">★ Pinned</div><div id="fav-list"></div></aside>
+      <section id="recommended-container" class="col"><div class="side-title">💡 Recommended</div><div class="rec-placeholder">Recent apps will appear here</div></section>
+      <main id="all-apps-container" class="col"><div class="side-title" id="grid-title"></div><div id="grid"></div></main>
+    </div>
   </div>
   <div id="console">
     <div class="chead"><span id="console-title">Output</span><span id="console-status"></span><span class="spacer"></span><button id="console-expand" class="tab" title="Expand / restore output">⤢</button><button id="console-clear" class="tab">Clear</button><button id="console-close" class="tab">✕</button></div>
