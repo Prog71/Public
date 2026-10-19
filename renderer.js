@@ -3,7 +3,15 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 let apps = [], favs = [], tools = [], toolApps = [], view = 'apps', items = [], sel = -1, editingToolId = null, toolToDelete = null;
 const COLS = 6;
 
-window.api.onShow(() => { $('#backdrop').classList.add('open'); $('#launcher').classList.add('open'); refresh(); });
+window.api.onShow(() => {
+  // Persist tasks (tab + console session), reset entry (stale search, leftover modals):
+  $('#search').value = '';
+  $('#add-tool-modal').classList.add('hidden');
+  $('#delete-modal').classList.add('hidden');
+  $('#ctx').classList.add('hidden');
+  editingToolId = null; toolToDelete = null;
+  $('#backdrop').classList.add('open'); $('#launcher').classList.add('open'); refresh();
+});
 window.api.onHide(() => { $('#backdrop').classList.remove('open'); $('#launcher').classList.remove('open'); });
 
 $('#backdrop').onclick = () => window.api.hide();

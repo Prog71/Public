@@ -250,7 +250,9 @@ ipcMain.handle('import-script', async () => {
   const name = path.basename(filePath, path.extname(filePath)).replace(/[-_]/g, ' ');
   if (!fs.existsSync(TOOLS_DIR)) fs.mkdirSync(TOOLS_DIR, { recursive: true });
   const id = 'custom-' + Date.now();
-  const tool = { id, name, emoji: '', exec: `bash "${filePath}"`, mode: 'console', order: 999 };
+  // pick the interpreter by extension — a .py run through bash would syntax-error instantly
+  const runner = path.extname(filePath).toLowerCase() === '.py' ? 'python3' : 'bash';
+  const tool = { id, name, emoji: '', exec: `${runner} "${filePath}"`, mode: 'console', order: 999 };
   fs.writeFileSync(path.join(TOOLS_DIR, id + '.json'), JSON.stringify(tool, null, 2));
   return tool;
 });
