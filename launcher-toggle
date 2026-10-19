@@ -1,0 +1,5 @@
+#!/bin/bash
+# Glass Launcher toggle — start resident instance, or toggle it if already running.
+cd "$HOME/.local/share/system-launcher" || exit 1
+nohup ./node_modules/.bin/electron . >/dev/null 2>&1 &
+disown
