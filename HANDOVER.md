@@ -25,6 +25,12 @@ An Electron popup launcher with **Windows-Start behavior** on a GNOME dock: left
 - **Full backup:** `~/ProjectSpace/backups/glass-<date>.tar.gz` = git bundle (whole repo) + favorites JSON + tools JSONs + the NoDisplay override desktop file + `launcher-toggle` + deployed app (minus `node_modules`) + gsettings dump.
 - **Restore:** untar → `git clone` from the bundle → copy state files back to their paths → `npm install` in the deploy dir → toggle the dock icon.
 
+## Credentials (GitHub push bridge)
+- `~/.git-credentials` (chmod 600) holds a classic PAT (scope `repo`) for `Prog71` — installed 2026-10-19, **expires ≈ 2026-11-18** (30-day default). `credential.helper store` is set globally, so pushes from any context are silent.
+- The token value is never displayed anywhere; VSCodium's own stored token happens to expire the same day (2026-11-18).
+- **Rotation (~5 min):** mint a fresh classic token at `https://github.com/settings/tokens/new` (scope `repo`) → save it as `~/github_token.txt` → tell Cline to swap the vault → the file is deleted after install. *Alternative:* create a **no-expiration** token once and never rotate again.
+- Safety net: systemd user timer `gh-token-reminder.timer` fires a desktop notification on ≈ Nov 15 if rotation is still pending.
+
 ## House rules (from the P1 war room)
 1. Never `NoDisplay=true` on a pinned favorite (regression `c9fb327` — it gets pruned → dead click).
 2. Never write `favorite-apps` from code; watchers are log-only.
