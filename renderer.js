@@ -46,7 +46,8 @@ function setView(v){
   $('#tab-apps').classList.toggle('active', v === 'apps');
   $('#tab-tools').classList.toggle('active', v === 'tools');
   $('#launcher').classList.toggle('tools-mode', v === 'tools');
-  $('#favs').style.display = v === 'apps' ? 'flex' : 'none'; // Hide sidebar in tools
+  $('#favs').style.display = v === 'apps' ? 'flex' : 'none'; // PINNED column: Apps view only
+  $('#recommended-container').style.display = v === 'apps' ? 'flex' : 'none'; // RECOMMENDED: Apps only — Tools gets the full panel width
   syncConsoleTab(); // tuck the console drawer away outside the Tools tab
   render();
 }
