@@ -42,7 +42,7 @@ async function refresh(){
 }
 
 function setView(v){
-  view = v;
+  view = v; sel = -1; // fresh selection per view — avoids stale index launching the wrong entry
   $('#tab-apps').classList.toggle('active', v === 'apps');
   $('#tab-tools').classList.toggle('active', v === 'tools');
   $('#launcher').classList.toggle('tools-mode', v === 'tools');
@@ -50,6 +50,7 @@ function setView(v){
   $('#recommended-container').style.display = v === 'apps' ? 'flex' : 'none'; // RECOMMENDED: Apps only — Tools gets the full panel width
   syncConsoleTab(); // tuck the console drawer away outside the Tools tab
   render();
+  $('#search').focus(); // keep DOM focus in search so Enter always means "launch", never "re-click tab"
 }
 
 function render(){
@@ -95,8 +96,9 @@ function render(){
     const addCard = document.createElement('div'); addCard.className = 'card add-tool-card';
     addCard.innerHTML = `<div class="ph" style="font-size:30px">➕</div><span>Add Tool</span>`;
     addCard.onclick = () => openAddModal();
-    grid.appendChild(addCard);
+    grid.appendChild(addCard); items.push({el:addCard, app:null, addCard:addCard, zone:'grid'});
   }
+  if (sel >= items.length) sel = -1; // search/shrink can orphan the index — drop it so Enter falls back to items[0]
   paintJumpers();
   setSel(-1);
 }
@@ -264,9 +266,15 @@ window.addEventListener('keydown', e => {
   }
   if (e.key === 'Enter'){
     e.preventDefault();
+    if (sel >= 0 && items[sel]) {
+      const it = items[sel];
+      if (it.addCard) { it.addCard.onclick(); return; } // ➕ card: open Add Tool modal
+      if (it.tool) { window.api.runTool(it.app); } else { window.api.launch(it.app); }
+      return;
+    }
     const active = document.activeElement;
     if (active && (active.id === 'tab-apps' || active.id === 'tab-tools')) { active.click(); return; }
-    const it = sel >= 0 ? items[sel] : items[0];
+    const it = items[0];
     if (it) { it.tool ? window.api.runTool(it.app) : window.api.launch(it.app); }
   }
 });
