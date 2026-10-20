@@ -41,7 +41,35 @@ header { display: flex; align-items: center; padding: 15px 20px; border-bottom: 
 .tab.active { background: rgba(255,255,255,0.1); color: #fff; font-weight: 500; }
 #close { margin-left: auto; font-size: 18px; padding: 6px 10px; }
 
-#body { display: flex; flex: 1; overflow: hidden; }
+#body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+/* ---- P3: bottom bar + layout control ---- */
+#bottom-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: rgba(20,20,20,0.95); border-top: 1px solid rgba(255,255,255,0.1); border-radius: 0 0 16px 16px; flex: 0 0 auto; }
+#user-identity { display: flex; align-items: center; gap: 10px; color: #ddd; font-size: 14px; }
+#user-identity .avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; font-size: 15px; }
+#power-actions { display: flex; gap: 4px; align-items: center; }
+.pbtn { font-size: 16px; padding: 6px 9px; line-height: 1; }
+#settings-modal { position: absolute; bottom: 60px; left: 20px; right: 20px; background: #1e1e1e; border: 1px solid #333; border-radius: 12px; padding: 18px 20px; z-index: 2000; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+#settings-modal.hidden { display: none; }
+.settings-header { display: flex; align-items: center; justify-content: space-between; font-size: 15px; font-weight: 600; color: #fff; }
+.settings-section { display: flex; flex-direction: column; gap: 8px; }
+.settings-label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #888; font-weight: 600; }
+.seg { display: flex; gap: 6px; }
+.seg .tab.active { background: rgba(78,161,255,0.25); color: #fff; }
+.chk { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #ddd; cursor: pointer; }
+.chk input { accent-color: #4ea1ff; width: 15px; height: 15px; }
+/* P3: layout modes driven by prefs — compact hides Recommended (2 cols) */
+#launcher.layout-compact #recommended-container { display: none !important; }
+#launcher.hide-pinned #favs { display: none !important; }
+#launcher.hide-recommended #recommended-container { display: none !important; }
+#launcher.hide-search #search { display: none; }
+#launcher.hide-tools #tab-tools { display: none; }
+/* P3: icon sizes — applied on the grid container */
+#grid.icons-small .card { min-height: 92px; }
+#grid.icons-small .card img { width: 30px; height: 30px; }
+#grid.icons-medium .card { min-height: 118px; }
+#grid.icons-medium .card img { width: 44px; height: 44px; }
+#grid.icons-large .card { min-height: 148px; }
+#grid.icons-large .card img { width: 60px; height: 60px; }
 /* ---- P2: 3-column Start layout (25 / 35 / 40) ---- */
 #cols { display: flex; flex: 1; overflow: hidden; min-width: 0; }
 #favs { flex: 0 0 25%; width: auto; border-right: none; }                                  /* PINNED */

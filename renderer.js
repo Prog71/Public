@@ -3,6 +3,27 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 let apps = [], favs = [], tools = [], toolApps = [], view = 'apps', items = [], sel = -1, editingToolId = null, toolToDelete = null;
 const COLS = 6;
 
+// ---- P3: layout preferences (local JSON only, never gsettings) ----
+let prefs = { layoutMode: 'standard', showPinned: true, showRecommended: true, showSearch: true, showToolsTab: true, iconSize: 'medium' };
+function applyPrefs(){
+  const L = $('#launcher');
+  L.classList.toggle('layout-compact', prefs.layoutMode === 'compact');
+  L.classList.toggle('hide-pinned', !prefs.showPinned);
+  L.classList.toggle('hide-recommended', !prefs.showRecommended);
+  L.classList.toggle('hide-search', !prefs.showSearch);
+  L.classList.toggle('hide-tools', !prefs.showToolsTab);
+  const grid = $('#grid');
+  grid.classList.remove('icons-small', 'icons-medium', 'icons-large');
+  grid.classList.add('icons-' + (prefs.iconSize || 'medium'));
+  const map = [['pref-show-pinned', prefs.showPinned], ['pref-show-recommended', prefs.showRecommended], ['pref-show-search', prefs.showSearch], ['pref-show-tools', prefs.showToolsTab]];
+  for (const [id, v] of map) { const c = document.getElementById(id); if (c) c.checked = !!v; }
+  document.querySelectorAll('#seg-layout button').forEach(b => b.classList.toggle('active', b.dataset.layout === prefs.layoutMode));
+  document.querySelectorAll('#seg-icons button').forEach(b => b.classList.toggle('active', b.dataset.icons === prefs.iconSize));
+  if (!prefs.showToolsTab && view === 'tools') setView('apps'); // hidden tab can't stay active
+}
+async function loadPrefs(){ try { const p = await window.api.getPrefs(); if (p) prefs = { ...prefs, ...p }; } catch (e) {} applyPrefs(); }
+function persistPrefs(){ try { window.api.savePrefs(prefs); } catch (e) {} }
+
 window.api.onShow(() => {
   // Persist tasks (tab + console session), reset entry (stale search, leftover modals):
   $('#search').value = '';
@@ -42,12 +63,14 @@ async function refresh(){
 }
 
 function setView(v){
+  if (v === 'tools' && !prefs.showToolsTab) v = 'apps'; // hidden Tools tab can't activate
   view = v; sel = -1; // fresh selection per view — avoids stale index launching the wrong entry
   $('#tab-apps').classList.toggle('active', v === 'apps');
   $('#tab-tools').classList.toggle('active', v === 'tools');
   $('#launcher').classList.toggle('tools-mode', v === 'tools');
-  $('#favs').style.display = v === 'apps' ? 'flex' : 'none'; // PINNED column: Apps view only
-  $('#recommended-container').style.display = v === 'apps' ? 'flex' : 'none'; // RECOMMENDED: Apps only — Tools gets the full panel width
+  // P3 prefs win over view defaults: hidden-by-pref stays hidden
+  $('#favs').style.display = (v === 'apps' && prefs.showPinned) ? 'flex' : 'none'; // PINNED column: Apps view only
+  $('#recommended-container').style.display = (v === 'apps' && prefs.showRecommended) ? 'flex' : 'none'; // RECOMMENDED: Apps only — Tools gets the full panel width
   syncConsoleTab(); // tuck the console drawer away outside the Tools tab
   render();
   $('#search').focus(); // keep DOM focus in search so Enter always means "launch", never "re-click tab"
@@ -235,7 +258,7 @@ function setSel(i){
 }
 
 window.addEventListener('keydown', e => {
-  if (e.key === 'Escape'){ $('#add-tool-modal').classList.add('hidden'); $('#delete-modal').classList.add('hidden'); window.api.hide(); e.preventDefault(); return; }
+  if (e.key === 'Escape'){ $('#add-tool-modal').classList.add('hidden'); $('#delete-modal').classList.add('hidden'); const sm = $('#settings-modal'); if (sm) sm.classList.add('hidden'); window.api.hide(); e.preventDefault(); return; }
   if (['ArrowDown','ArrowUp','ArrowLeft','ArrowRight'].includes(e.key)){
     e.preventDefault();
     if (!items.length) return;
@@ -288,4 +311,26 @@ $('#tab-tools').onclick = () => setView('tools');
 $('#close').onclick = () => window.api.hide();
 $('#search').addEventListener('input', () => render());
 
-(async () => { await refresh(); })();
+// ---- P3: bottom bar + layout control wiring ----
+function toggleSettings(force){
+  const m = $('#settings-modal');
+  const show = force !== undefined ? force : m.classList.contains('hidden');
+  m.classList.toggle('hidden', !show);
+  if (show) applyPrefs(); // re-sync control states on open
+}
+$('#btn-settings').onclick = (e) => { e.stopPropagation(); toggleSettings(); };
+$('#settings-close').onclick = () => toggleSettings(false);
+$('#btn-files').onclick = () => window.api.openFiles();
+$('#btn-suspend').onclick = () => window.api.suspend();
+$('#btn-restart').onclick = () => window.api.restart();
+$('#btn-poweroff').onclick = () => window.api.poweroff();
+$('#btn-logout').onclick = () => window.api.logout();
+document.querySelectorAll('#seg-layout button').forEach(b => b.onclick = () => { prefs.layoutMode = b.dataset.layout; applyPrefs(); persistPrefs(); });
+document.querySelectorAll('#seg-icons button').forEach(b => b.onclick = () => { prefs.iconSize = b.dataset.icons; applyPrefs(); persistPrefs(); });
+for (const [id, key] of [['pref-show-pinned','showPinned'],['pref-show-recommended','showRecommended'],['pref-show-search','showSearch'],['pref-show-tools','showToolsTab']]){
+  const c = document.getElementById(id);
+  if (c) c.onchange = () => { prefs[key] = c.checked; applyPrefs(); setView(view); persistPrefs(); };
+}
+document.addEventListener('click', (e) => { const m = $('#settings-modal'); if (m && !m.classList.contains('hidden') && !e.target.closest('#settings-modal') && !e.target.closest('#btn-settings')) m.classList.add('hidden'); });
+
+(async () => { await loadPrefs(); await refresh(); })();
