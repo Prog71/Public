@@ -63,13 +63,17 @@ header { display: flex; align-items: center; padding: 15px 20px; border-bottom: 
 #launcher.hide-recommended #recommended-container { display: none !important; } /* legacy guard — Show Recommended checkbox removed, Compact mode owns this now */
 #launcher.hide-search #search { display: none; }
 #launcher.hide-tools #tab-tools { display: none; }
-/* P3: icon sizes — scoped to #launcher so Apps AND Tools grids resize together */
+/* P3: icon sizes — scoped to #launcher so Apps AND Tools grids resize together.
+   Tools cards render emoji icons via .ph (not <img>), so .ph must resize too. */
 #launcher.icons-small .card { min-height: 92px; }
 #launcher.icons-small .card img { width: 30px; height: 30px; }
+#launcher.icons-small .card .ph { width: 30px; height: 30px; font-size: 30px; }
 #launcher.icons-medium .card { min-height: 118px; }
 #launcher.icons-medium .card img { width: 44px; height: 44px; }
+#launcher.icons-medium .card .ph { width: 44px; height: 44px; font-size: 44px; }
 #launcher.icons-large .card { min-height: 148px; }
 #launcher.icons-large .card img { width: 60px; height: 60px; }
+#launcher.icons-large .card .ph { width: 60px; height: 60px; font-size: 60px; }
 #user-identity .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
 /* ---- P2: 3-column Start layout (25 / 35 / 40) ---- */
 #cols { display: flex; flex: 1; overflow: hidden; min-width: 0; }
