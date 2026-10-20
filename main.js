@@ -4,10 +4,10 @@ const path = require('path');
 const os = require('os');
 const { spawn } = require('child_process');
 
-const FAV_FILE = path.join(os.homedir(), '.config', 'launcher-favorites.json');
+const PIN_FILE = path.join(os.homedir(), '.config', 'launcher-favorites.json'); // path kept for existing user data
 const TOOLS_DIR = path.join(os.homedir(), '.config', 'system-launcher', 'tools');
 const PREFS_FILE = path.join(os.homedir(), '.config', 'glass-launcher', 'preferences.json');
-const DEFAULT_PREFS = { layoutMode: 'standard', showPinned: true, showRecommended: true, showSearch: true, showToolsTab: true, iconSize: 'medium' };
+const DEFAULT_PREFS = { layoutMode: 'standard', showPinned: true, showSearch: true, showToolsTab: true, iconSize: 'medium' };
 let win = null, isOpen = false, toolProc = null, isPickerOpen = false;
 let hideTimer = null, blurTimer = null, dockCloseAt = 0; // deferred-hide plumbing + dock-click detection
 
@@ -208,11 +208,11 @@ function loadTools() {
 }
 
 ipcMain.handle('get-apps', () => loadApps());
-ipcMain.handle('get-favs', () => { try { return JSON.parse(fs.readFileSync(FAV_FILE, 'utf8')); } catch (e) { return []; } });
+ipcMain.handle('get-favs', () => { try { return JSON.parse(fs.readFileSync(PIN_FILE, 'utf8')); } catch (e) { return []; } });
 ipcMain.handle('get-tools', () => loadTools());
 ipcMain.handle('get-tool-apps', () => loadToolApps());
 
-ipcMain.on('set-favs', (e, f) => fs.writeFileSync(FAV_FILE, JSON.stringify(f)));
+ipcMain.on('set-favs', (e, f) => fs.writeFileSync(PIN_FILE, JSON.stringify(f)));
 ipcMain.on('hide', () => hideWin());
 ipcMain.on('launch', (e, a) => { spawnSafe('gio', ['launch', a.path]); hideWin(); });
 
@@ -256,6 +256,32 @@ async function confirmDestructive(kind, detail){
 ipcMain.on('action-restart', async () => { if (await confirmDestructive('Restart', 'The system will restart immediately.')) spawnSafe('systemctl', ['reboot']); });
 ipcMain.on('action-poweroff', async () => { if (await confirmDestructive('Power Off', 'The system will shut down immediately.')) spawnSafe('systemctl', ['poweroff']); });
 ipcMain.on('action-logout', async () => { if (await confirmDestructive('Log Out', 'Your session will end and unsaved work may be lost.')) spawnSafe('gnome-session-quit', ['--logout', '--no-prompt']); });
+
+// P3 polish Fix 4: real user avatar — ~/.face or AccountsService icon, base64 data URI; fallback = initial
+function getUserAvatar(){
+  const user = os.userInfo().username || 'User';
+  const candidates = [
+    path.join(os.homedir(), '.face'),
+    path.join('/var/lib/AccountsService/icons', user),
+  ];
+  for (const f of candidates) {
+    try {
+      if (!fs.existsSync(f) || !fs.statSync(f).isFile()) continue;
+      const buf = fs.readFileSync(f);
+      if (!buf.length || buf.length > 2 * 1024 * 1024) continue;
+      const head = buf.slice(0, 4).toString('hex');
+      let mime = null;
+      if (head.startsWith('89504e47')) mime = 'image/png';
+      else if (head.startsWith('ffd8ff')) mime = 'image/jpeg';
+      else if (head.startsWith('47494638')) mime = 'image/gif';
+      else if (head.startsWith('52494646')) mime = 'image/webp';
+      if (!mime) continue;
+      return { user, avatar: 'data:' + mime + ';base64,' + buf.toString('base64') };
+    } catch (e) {}
+  }
+  return { user, avatar: null };
+}
+ipcMain.handle('get-user', () => getUserAvatar());
 
 ipcMain.handle('import-script', async () => {
   isPickerOpen = true;

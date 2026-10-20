@@ -4,25 +4,35 @@ let apps = [], favs = [], tools = [], toolApps = [], view = 'apps', items = [], 
 const COLS = 6;
 
 // ---- P3: layout preferences (local JSON only, never gsettings) ----
-let prefs = { layoutMode: 'standard', showPinned: true, showRecommended: true, showSearch: true, showToolsTab: true, iconSize: 'medium' };
+let prefs = { layoutMode: 'standard', showPinned: true, showSearch: true, showToolsTab: true, iconSize: 'medium' };
 function applyPrefs(){
   const L = $('#launcher');
   L.classList.toggle('layout-compact', prefs.layoutMode === 'compact');
   L.classList.toggle('hide-pinned', !prefs.showPinned);
-  L.classList.toggle('hide-recommended', !prefs.showRecommended);
   L.classList.toggle('hide-search', !prefs.showSearch);
   L.classList.toggle('hide-tools', !prefs.showToolsTab);
   const grid = $('#grid');
-  grid.classList.remove('icons-small', 'icons-medium', 'icons-large');
-  grid.classList.add('icons-' + (prefs.iconSize || 'medium'));
-  const map = [['pref-show-pinned', prefs.showPinned], ['pref-show-recommended', prefs.showRecommended], ['pref-show-search', prefs.showSearch], ['pref-show-tools', prefs.showToolsTab]];
+  L.classList.remove('icons-small', 'icons-medium', 'icons-large');
+  L.classList.add('icons-' + (prefs.iconSize || 'medium'));
+  const map = [['pref-show-pinned', prefs.showPinned], ['pref-show-search', prefs.showSearch], ['pref-show-tools', prefs.showToolsTab]];
   for (const [id, v] of map) { const c = document.getElementById(id); if (c) c.checked = !!v; }
   document.querySelectorAll('#seg-layout button').forEach(b => b.classList.toggle('active', b.dataset.layout === prefs.layoutMode));
   document.querySelectorAll('#seg-icons button').forEach(b => b.classList.toggle('active', b.dataset.icons === prefs.iconSize));
   if (!prefs.showToolsTab && view === 'tools') setView('apps'); // hidden tab can't stay active
 }
-async function loadPrefs(){ try { const p = await window.api.getPrefs(); if (p) prefs = { ...prefs, ...p }; } catch (e) {} applyPrefs(); }
-function persistPrefs(){ try { window.api.savePrefs(prefs); } catch (e) {} }
+async function loadPrefs(){ try { const p = await window.api.getPrefs(); if (p) { delete p.showRecommended; prefs = { ...prefs, ...p }; } } catch (e) {} applyPrefs(); }
+function persistPrefs(){ try { const clean = { ...prefs }; delete clean.showRecommended; window.api.savePrefs(clean); } catch (e) {} }
+// P3 polish Fix 4: paint real avatar, or styled initial fallback
+async function loadUser(){
+  try {
+    const u = await window.api.getUser();
+    if (!u) return;
+    const name = (u.user || 'User');
+    $('#user-name').textContent = name.charAt(0).toUpperCase() + name.slice(1);
+    if (u.avatar) { $('#user-avatar').innerHTML = `<img src="${u.avatar}" alt="">`; }
+    else { $('#user-avatar').textContent = name.charAt(0).toUpperCase(); }
+  } catch (e) {}
+}
 
 window.api.onShow(() => {
   // Persist tasks (tab + console session), reset entry (stale search, leftover modals):
@@ -70,7 +80,7 @@ function setView(v){
   $('#launcher').classList.toggle('tools-mode', v === 'tools');
   // P3 prefs win over view defaults: hidden-by-pref stays hidden
   $('#favs').style.display = (v === 'apps' && prefs.showPinned) ? 'flex' : 'none'; // PINNED column: Apps view only
-  $('#recommended-container').style.display = (v === 'apps' && prefs.showRecommended) ? 'flex' : 'none'; // RECOMMENDED: Apps only — Tools gets the full panel width
+  $('#recommended-container').style.display = v === 'apps' ? 'flex' : 'none'; // RECOMMENDED: Apps only, Standard mode only (Compact hides via CSS)
   syncConsoleTab(); // tuck the console drawer away outside the Tools tab
   render();
   $('#search').focus(); // keep DOM focus in search so Enter always means "launch", never "re-click tab"
@@ -81,7 +91,7 @@ function render(){
   const favList = $('#fav-list'), grid = $('#grid');
   favList.innerHTML = ''; grid.innerHTML = ''; items = [];
   if (view === 'apps'){
-    $('#grid-title').innerHTML = 'All Applications <span style="color:#5c5c63;font-weight:400;text-transform:none;letter-spacing:0">(right-click to favorite)</span>';
+    $('#grid-title').innerHTML = 'All Applications <span style="color:#5c5c63;font-weight:400;text-transform:none;letter-spacing:0">(right-click to pin)</span>';
     apps.filter(a => favs.includes(a.id) && (!q || a.name.toLowerCase().includes(q))).forEach(a => {
       const row = document.createElement('div'); row.className = 'fav-row';
       row.innerHTML = (a.icon ? `<img src="file://${esc(a.icon)}">` : '<span></span>') + `<span>${esc(a.name)}</span>`;
@@ -169,8 +179,8 @@ function ctxMenuApp(e, app) {
   const ctx = document.getElementById('ctx');
   const isFav = favs.includes(app.id);
   ctx.innerHTML = isFav 
-    ? '<div id="ctx-rm-fav" style="color:#ff6b6b">★ Remove from Favorites</div>' 
-    : '<div id="ctx-add-fav">☆ Add to Favorites</div>';
+    ? '<div id="ctx-rm-fav" style="color:#ff6b6b">★ Unpin from Launcher</div>' 
+    : '<div id="ctx-add-fav">☆ Pin to Launcher</div>';
   ctx.classList.remove('hidden');
   ctx.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
   ctx.style.top = Math.min(e.clientY, window.innerHeight - 50) + 'px';
@@ -327,10 +337,10 @@ $('#btn-poweroff').onclick = () => window.api.poweroff();
 $('#btn-logout').onclick = () => window.api.logout();
 document.querySelectorAll('#seg-layout button').forEach(b => b.onclick = () => { prefs.layoutMode = b.dataset.layout; applyPrefs(); persistPrefs(); });
 document.querySelectorAll('#seg-icons button').forEach(b => b.onclick = () => { prefs.iconSize = b.dataset.icons; applyPrefs(); persistPrefs(); });
-for (const [id, key] of [['pref-show-pinned','showPinned'],['pref-show-recommended','showRecommended'],['pref-show-search','showSearch'],['pref-show-tools','showToolsTab']]){
+for (const [id, key] of [['pref-show-pinned','showPinned'],['pref-show-search','showSearch'],['pref-show-tools','showToolsTab']]){
   const c = document.getElementById(id);
   if (c) c.onchange = () => { prefs[key] = c.checked; applyPrefs(); setView(view); persistPrefs(); };
 }
 document.addEventListener('click', (e) => { const m = $('#settings-modal'); if (m && !m.classList.contains('hidden') && !e.target.closest('#settings-modal') && !e.target.closest('#btn-settings')) m.classList.add('hidden'); });
 
-(async () => { await loadPrefs(); await refresh(); })();
+(async () => { await loadPrefs(); await loadUser(); await refresh(); })();

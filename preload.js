@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('api', {
   restart: () => ipcRenderer.send('action-restart'),
   poweroff: () => ipcRenderer.send('action-poweroff'),
   logout: () => ipcRenderer.send('action-logout'),
+  getUser: () => ipcRenderer.invoke('get-user'),
   onShow: cb => ipcRenderer.on('animate-in', cb),
   onHide: cb => ipcRenderer.on('animate-out', cb),
   onToolStart: cb => ipcRenderer.on('tool-start', (e, n) => cb(n)),
