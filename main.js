@@ -6,6 +6,8 @@ const { spawn } = require('child_process');
 
 const FAV_FILE = path.join(os.homedir(), '.config', 'launcher-favorites.json');
 const TOOLS_DIR = path.join(os.homedir(), '.config', 'system-launcher', 'tools');
+const PREFS_FILE = path.join(os.homedir(), '.config', 'glass-launcher', 'preferences.json');
+const DEFAULT_PREFS = { layoutMode: 'standard', showPinned: true, showRecommended: true, showSearch: true, showToolsTab: true, iconSize: 'medium' };
 let win = null, isOpen = false, toolProc = null, isPickerOpen = false;
 let hideTimer = null, blurTimer = null, dockCloseAt = 0; // deferred-hide plumbing + dock-click detection
 
@@ -240,6 +242,20 @@ ipcMain.on('add-tool', (e, t) => {
   const id = 'custom-' + Date.now();
   fs.writeFileSync(path.join(TOOLS_DIR, id + '.json'), JSON.stringify({ ...t, id, order: 999 }, null, 2));
 });
+
+ipcMain.handle('get-prefs', () => { try { return { ...DEFAULT_PREFS, ...JSON.parse(fs.readFileSync(PREFS_FILE, 'utf8')) }; } catch (e) { return { ...DEFAULT_PREFS }; } });
+ipcMain.on('save-prefs', (e, p) => { try { fs.mkdirSync(path.dirname(PREFS_FILE), { recursive: true }); fs.writeFileSync(PREFS_FILE, JSON.stringify({ ...DEFAULT_PREFS, ...p }, null, 2)); } catch (err) {} });
+
+// P3: power actions — destructive ones confirm via native dialog first; files opens nautilus
+ipcMain.on('open-files', () => spawnSafe('nautilus', []));
+ipcMain.on('action-suspend', () => spawnSafe('systemctl', ['suspend']));
+async function confirmDestructive(kind, detail){
+  const res = await dialog.showMessageBox(win, { type: 'warning', buttons: ['Cancel', kind], defaultId: 0, cancelId: 0, title: kind, message: kind + ' now?', detail });
+  return res.response === 1;
+}
+ipcMain.on('action-restart', async () => { if (await confirmDestructive('Restart', 'The system will restart immediately.')) spawnSafe('systemctl', ['reboot']); });
+ipcMain.on('action-poweroff', async () => { if (await confirmDestructive('Power Off', 'The system will shut down immediately.')) spawnSafe('systemctl', ['poweroff']); });
+ipcMain.on('action-logout', async () => { if (await confirmDestructive('Log Out', 'Your session will end and unsaved work may be lost.')) spawnSafe('gnome-session-quit', ['--logout', '--no-prompt']); });
 
 ipcMain.handle('import-script', async () => {
   isPickerOpen = true;
