@@ -7,6 +7,8 @@ const { spawn } = require('child_process');
 const PIN_FILE = path.join(os.homedir(), '.config', 'launcher-favorites.json'); // path kept for existing user data
 const TOOLS_DIR = path.join(os.homedir(), '.config', 'system-launcher', 'tools');
 const PREFS_FILE = path.join(os.homedir(), '.config', 'glass-launcher', 'preferences.json');
+const RECENT_FILE = path.join(os.homedir(), '.config', 'glass-launcher', 'recent.json');
+const RECENT_LIMIT = 8;
 const DEFAULT_PREFS = { layoutMode: 'standard', showPinned: true, showSearch: true, showToolsTab: true, iconSize: 'medium' };
 let win = null, isOpen = false, toolProc = null, isPickerOpen = false;
 let hideTimer = null, blurTimer = null, dockCloseAt = 0; // deferred-hide plumbing + dock-click detection
@@ -245,6 +247,38 @@ ipcMain.on('add-tool', (e, t) => {
 
 ipcMain.handle('get-prefs', () => { try { return { ...DEFAULT_PREFS, ...JSON.parse(fs.readFileSync(PREFS_FILE, 'utf8')) }; } catch (e) { return { ...DEFAULT_PREFS }; } });
 ipcMain.on('save-prefs', (e, p) => { try { fs.mkdirSync(path.dirname(PREFS_FILE), { recursive: true }); fs.writeFileSync(PREFS_FILE, JSON.stringify({ ...DEFAULT_PREFS, ...p }, null, 2)); } catch (err) {} });
+
+// P4: recent-launch tracking — local JSON only, never gsettings
+function ensureRecentDir(){ try { fs.mkdirSync(path.dirname(RECENT_FILE), { recursive: true }); } catch (e) {} }
+function readRecent(){ try { const raw = fs.readFileSync(RECENT_FILE, 'utf8'); const arr = JSON.parse(raw); return Array.isArray(arr) ? arr : []; } catch (e) { return []; } }
+function writeRecent(arr){ ensureRecentDir(); try { fs.writeFileSync(RECENT_FILE, JSON.stringify(arr, null, 2)); } catch (e) {} }
+ipcMain.handle('get-recent', () => readRecent());
+ipcMain.on('record-launch', (e, item) => {
+  try {
+    let arr = readRecent();
+    const existingIdx = arr.findIndex(x => x.id === item.id);
+    if (existingIdx >= 0) arr.splice(existingIdx, 1);
+    arr.unshift(item);
+    if (arr.length > RECENT_LIMIT) arr.length = RECENT_LIMIT;
+    writeRecent(arr);
+  } catch (err) {}
+});
+
+// P4: remove a single item from recent list
+ipcMain.on('remove-from-recent', (e, appId) => {
+  try {
+    let arr = readRecent();
+    arr = arr.filter(x => x.id !== appId);
+    writeRecent(arr);
+  } catch (err) {}
+});
+
+// P4: clear entire recent list
+ipcMain.on('clear-recent', () => {
+  try {
+    writeRecent([]);
+  } catch (err) {}
+});
 
 // P3: power actions — destructive ones confirm via native dialog first; files opens nautilus
 ipcMain.on('open-files', () => spawnSafe('nautilus', []));

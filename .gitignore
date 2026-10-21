@@ -1,5 +1,6 @@
 node_modules/
 glass-launcher/
+test/.tmp/
 
 # Owner policy: GitHub carries app files only — maintainer internals & secrets stay local
 HANDOVER.md

@@ -1,6 +1,6 @@
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let apps = [], favs = [], tools = [], toolApps = [], view = 'apps', items = [], sel = -1, editingToolId = null, toolToDelete = null;
+let apps = [], favs = [], tools = [], toolApps = [], view = 'apps', items = [], sel = -1, editingToolId = null, toolToDelete = null, recent = [], focusedColumn = null;
 const COLS = 6;
 
 // ---- P3: layout preferences (local JSON only, never gsettings) ----
@@ -44,7 +44,6 @@ window.api.onShow(() => {
   $('#backdrop').classList.add('open'); $('#launcher').classList.add('open'); refresh();
 });
 window.api.onHide(() => { $('#backdrop').classList.remove('open'); $('#launcher').classList.remove('open'); });
-
 $('#backdrop').onclick = () => window.api.hide();
 
 let outLines = [], outCur = '', consoleOpen = false, consoleRunning = false;
@@ -68,13 +67,14 @@ async function refresh(){
   favs = await window.api.getFavs(); 
   tools = await window.api.getTools(); 
   toolApps = await window.api.getToolApps(); 
+  recent = await window.api.getRecent(); 
   render(); 
   $('#search').focus(); 
 }
 
 function setView(v){
   if (v === 'tools' && !prefs.showToolsTab) v = 'apps'; // hidden Tools tab can't activate
-  view = v; sel = -1; // fresh selection per view — avoids stale index launching the wrong entry
+  view = v; sel = -1; focusedColumn = null; // fresh selection per view — avoids stale index launching the wrong entry
   $('#tab-apps').classList.toggle('active', v === 'apps');
   $('#tab-tools').classList.toggle('active', v === 'tools');
   $('#launcher').classList.toggle('tools-mode', v === 'tools');
@@ -93,21 +93,23 @@ function render(){
   if (view === 'apps'){
     $('#grid-title').innerHTML = 'All Applications <span style="color:#5c5c63;font-weight:400;text-transform:none;letter-spacing:0">(right-click to pin)</span>';
     apps.filter(a => favs.includes(a.id) && (!q || a.name.toLowerCase().includes(q))).forEach(a => {
-      const row = document.createElement('div'); row.className = 'fav-row';
+      const row = document.createElement('div'); row.className = 'fav-row'; row.tabIndex = 0;
       row.innerHTML = (a.icon ? `<img src="file://${esc(a.icon)}">` : '<span></span>') + `<span>${esc(a.name)}</span>`;
-      row.onclick = () => window.api.launch(a);
+      row.onclick = () => activateEntry({ app: a });
       row.oncontextmenu = (e) => ctxMenuApp(e, a);
       favList.appendChild(row); items.push({el:row, app:a, zone:'fav'});
     });
     apps.filter(a => !favs.includes(a.id) && (!q || a.name.toLowerCase().includes(q))).forEach(a => {
-      const card = document.createElement('div'); card.className = 'card';
+      const card = document.createElement('div'); card.className = 'card'; card.tabIndex = 0;
       card.innerHTML = (a.icon ? `<img src="file://${esc(a.icon)}">` : '<div class="ph">📦</div>') + `<span title="${esc(a.name)}">${esc(a.name)}</span>`;
-      card.onclick = () => window.api.launch(a);
+      card.onclick = () => activateEntry({ app: a });
       card.oncontextmenu = (e) => ctxMenuApp(e, a);
       card.dataset.letter = (a.name || '?').trim().charAt(0).toUpperCase(); // P2 Step 4: letter-group anchor
       grid.appendChild(card); items.push({el:card, app:a, zone:'grid'});
     });
+    renderRecommended(q); // P4: Recommended column (Apps view only)
   } else {
+    clearRecommended(); // P4: Recommended is Apps-only — drop its rows so no stale recents linger in the DOM
     $('#grid-title').textContent = 'System Tools';
     tools.forEach(t => {
       const card = document.createElement('div'); card.className = 'card';
@@ -116,7 +118,7 @@ function render(){
           <button class="action-btn btn-edit" title="Edit">✏️</button>
           <button class="action-btn btn-del" title="Delete">🗑️</button>
         </div>`;
-      card.onclick = (e) => { if (!e.target.closest('.action-btn')) window.api.runTool(t); }; // Click to run
+      card.onclick = (e) => { if (!e.target.closest('.action-btn')) { activateEntry({ app: t, tool: true }); } }; // Click to run
       card.querySelector('.btn-edit').onclick = (e) => { e.stopPropagation(); openEditModal(t); };
       card.querySelector('.btn-del').onclick = (e) => { 
         e.stopPropagation(); 
@@ -134,6 +136,86 @@ function render(){
   if (sel >= items.length) sel = -1; // search/shrink can orphan the index — drop it so Enter falls back to items[0]
   paintJumpers();
   setSel(-1);
+}
+
+// ---- P4: Recommended column (recent launches) ----
+// Rendered only in the Apps view; filtered by the same query as the other columns.
+// Empties the Recommended column without leaving stale rows behind (used by the Tools view).
+function clearRecommended(){
+  const recBox = document.getElementById('recommended-container');
+  const recTitle = recBox.querySelector('.side-title');
+  recBox.innerHTML = '';
+  recBox.appendChild(recTitle);
+}
+
+function renderRecommended(q){
+  const recBox = document.getElementById('recommended-container');
+  const recTitle = recBox.querySelector('.side-title');
+  recBox.innerHTML = '';
+  recBox.appendChild(recTitle);
+  $('#rec-clear').onclick = (e) => { e.stopPropagation(); window.api.clearRecent(); refresh(); };
+  const shown = recent.filter(it => !q || String(it.name || '').toLowerCase().includes(q));
+  if (shown.length === 0) {
+    const ph = document.createElement('div');
+    ph.className = 'rec-placeholder';
+    ph.textContent = q ? 'No matching recent apps' : 'No recent apps yet';
+    recBox.appendChild(ph);
+    return;
+  }
+  shown.forEach(function(item) {
+      var row = document.createElement('div');
+      row.className = 'rec-row';
+      row.tabIndex = 0;
+      var imgEl;
+      if (item.type === 'tool') {
+        imgEl = document.createElement('div');
+        imgEl.className = 'ph';
+        imgEl.textContent = esc(item.icon);
+      } else if (item.icon) {
+        imgEl = document.createElement('img');
+        imgEl.src = 'file://' + item.icon;
+        imgEl.alt = '';
+      } else {
+        imgEl = document.createElement('div');
+        imgEl.className = 'ph';
+        imgEl.textContent = '📦';
+      }
+      row.appendChild(imgEl);
+      var nameEl = document.createElement('span');
+      nameEl.textContent = item.name;
+      row.appendChild(nameEl);
+      row.onclick = (function(it) {
+        return function() {
+          activateEntry({ app: it, tool: it.type === 'tool' });
+        };
+      })(item);
+      row.oncontextmenu = (function(it) {
+        return function(e) { ctxMenuRec(e, it); };
+      })(item);
+      recBox.appendChild(row);
+      items.push({el: row, app: item, zone: 'rec', tool: item.type === 'tool'});
+    });
+}
+
+// P5: one activation path for every entry (Pinned / All Apps / Recommended).
+// Recent items only carry {id,name,icon,type} — resolve the live app/tool record
+// first, otherwise a recent tool would be run as `bash -c undefined`.
+function activateEntry(entry){
+  if (!entry) return;
+  if (entry.addCard) { entry.addCard.onclick(); return; }
+  const it = entry.app;
+  if (!it) return;
+  if (entry.tool){
+    const tool = tools.find(t => t.id === it.id);
+    if (!tool) return;
+    window.api.recordLaunch({ id: tool.id, name: tool.name, icon: tool.emoji, type: 'tool' });
+    window.api.runTool(tool);
+  } else {
+    const app = apps.find(a => a.id === it.id);
+    if (!app) return; // stale recent entry (app uninstalled) — nothing to launch
+    window.api.recordLaunch({ id: app.id, name: app.name, icon: app.icon, type: 'app' });
+    window.api.launch(app);
+  }
 }
 
 // ---- P2 Step 4: A-Z letter jumpers (Apps view only; hidden in Tools view) ----
@@ -191,6 +273,20 @@ function ctxMenuApp(e, app) {
     window.api.setFavs(favs);
     ctx.classList.add('hidden');
     render();
+  };
+}
+
+function ctxMenuRec(e, item) {
+  e.preventDefault();
+  const ctx = document.getElementById('ctx');
+  ctx.innerHTML = '<div id="ctx-rm-rec" style="color:#ff6b6b">Remove from list</div>';
+  ctx.classList.remove('hidden');
+  ctx.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
+  ctx.style.top = Math.min(e.clientY, window.innerHeight - 50) + 'px';
+  document.getElementById('ctx-rm-rec').onclick = () => {
+    window.api.removeFromRecent(item.id);
+    ctx.classList.add('hidden');
+    refresh();
   };
 }
 
@@ -267,48 +363,172 @@ function setSel(i){
   if (sel >= 0 && items[sel]) { items[sel].el.classList.add('sel'); items[sel].el.scrollIntoView({block:'nearest'}); }
 }
 
+// P5: pure arrow-navigation math over the 3-column `items` array.
+// Layout: fav [0..favEnd) | grid [favEnd..gridEnd) | rec [gridEnd..end)
+// Returns the new selection index, or -1 to stay put.
+function navIndex(key, sel, zone, favCount, gridCount, recCount){
+  const favEnd = favCount;
+  const gridEnd = favCount + gridCount;
+  const recEnd = favCount + gridCount + recCount;
+  let i = sel;
+  if (key === 'ArrowDown'){
+    if (zone === 'fav'){
+      if (sel + 1 < favEnd) return sel + 1;                                       // next pinned
+      if (gridCount > 0) return favEnd;                                           // first of All Apps
+      if (recCount > 0) return favEnd;                                            // first of Recommended
+      return sel;                                                                 // nothing else to move to
+    }
+    if (zone === 'rec') return (sel + 1 < recEnd) ? sel + 1 : recEnd - 1;      // next recommended
+    if (gridCount === 0) return sel;                                           // no All Apps column
+    return Math.min(sel + COLS, gridEnd - 1);                                   // down in All Apps
+  }
+  if (key === 'ArrowUp'){
+    if (zone === 'fav') return Math.max(sel - 1, 0);                            // up in pinned
+    if (zone === 'rec'){
+      if (gridCount > 0) return (sel - 1 < gridEnd) ? gridEnd - 1 : sel - 1;   // up in recommended, else last All Apps
+      if (favCount > 0) return favEnd - 1;                                     // no All Apps — last pinned
+      return sel;                                                             // only Recommended exists
+    }
+    if (gridCount === 0) return sel;                                            // no All Apps column
+    if (sel - COLS < favEnd) return favCount > 0 ? favEnd - 1 : sel;           // up in All Apps, else last pinned
+    return sel - COLS;
+  }
+  if (key === 'ArrowRight'){
+    if (zone === 'fav'){
+      if (recCount === 0) return sel;                                           // no Recommended — stay put
+      return gridEnd + Math.min(sel, recCount - 1);                             // same row in Recommended
+    }
+    if (zone === 'rec'){
+      if (gridCount === 0) return sel;
+      const recRow = sel - gridEnd;                                             // row within Recommended (0-based)
+      return favEnd + Math.min(recRow * COLS, gridCount - 1);                    // same row in All Apps
+    }
+    return Math.min(sel + 1, gridEnd - 1);                                      // right in All Apps
+  }
+  if (key === 'ArrowLeft'){
+    if (zone === 'fav') return Math.max(sel - 1, 0);                            // left in pinned
+    if (zone === 'rec'){
+      if (favCount === 0) return sel;
+      const recRow = sel - gridEnd;                                             // row within Recommended (0-based)
+      return Math.min(recRow, favCount - 1);                                    // same row in Pinned
+    }
+    if (recCount === 0) return Math.max(sel - 1, favEnd);                      // no Recommended — step left
+    const gridRow = Math.floor((sel - favEnd) / COLS);                          // row within All Apps grid
+    return gridEnd + Math.min(gridRow, recCount - 1);                           // same row in Recommended
+  }
+  return i;
+}
+
+// A text field owns its own keys — but the MAIN search box is the exception:
+// the launcher keeps DOM focus there on open, so ArrowUp/Down must still drive
+// the grid selection and Enter must still launch it. Every other text field
+// lives inside a modal (modal search, tool name/exec/emoji) and keeps its keys.
+function isTypingField(t){
+  if (!t) return false;
+  if (t.id === 'search') return false;
+  return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable;
+}
+
 window.addEventListener('keydown', e => {
-  if (e.key === 'Escape'){ $('#add-tool-modal').classList.add('hidden'); $('#delete-modal').classList.add('hidden'); const sm = $('#settings-modal'); if (sm) sm.classList.add('hidden'); window.api.hide(); e.preventDefault(); return; }
-  if (['ArrowDown','ArrowUp','ArrowLeft','ArrowRight'].includes(e.key)){
+  // Escape: close the topmost open modal, otherwise hide the launcher
+  if (e.key === 'Escape') {
+    const sm = $('#settings-modal');
+    if (sm && !sm.classList.contains('hidden')) { toggleSettings(false); return; }
+    const dm = $('#delete-modal');
+    if (dm && !dm.classList.contains('hidden')) { toolToDelete = null; dm.classList.add('hidden'); return; }
+    const am = $('#add-tool-modal');
+    if (am && !am.classList.contains('hidden')) { am.classList.add('hidden'); return; }
+    window.api.hide();
+    return;
+  }
+
+  if (['ArrowDown','ArrowUp','ArrowLeft','ArrowRight'].includes(e.key)) {
+    // Never steal arrow keys from a text field (modal search / tool name / exec / emoji)
+    if (isTypingField(e.target)) return;
     e.preventDefault();
+
+    const active = document.activeElement;
+    const colEls = [$('#favs'), $('#recommended-container'), $('#all-apps-container')];
+
+    // If a column container has focus, reset selection to first item in that column.
+    // An empty column must NOT claim the focused zone — navIndex() would then be
+    // called with a zone that has no items and compute a negative index.
+    if (colEls.includes(active)) {
+      const zone = active.id === 'favs' ? 'fav' : active.id === 'recommended-container' ? 'rec' : 'grid';
+      const zoneItems = items.filter(it => it.zone === zone);
+      if (zoneItems.length === 0) { focusedColumn = null; return; } // empty column — nothing to move to
+      focusedColumn = zone;
+      const idx = items.indexOf(zoneItems[0]);
+      setSel(idx);
+      items[idx].el.focus();
+      return;
+    }
+    focusedColumn = null;
+
     if (!items.length) return;
     if (sel < 0) { setSel(0); return; }
 
     const favCount = items.filter(x => x.zone === 'fav').length;
-    let i = sel;
-    const inFav = i < favCount;
-
-    if (e.key === 'ArrowDown') {
-      if (inFav) { i = (i + 1 < favCount) ? i + 1 : favCount; } // Down in fav, or jump to grid
-      else { i = Math.min(i + COLS, items.length - 1); } // Down in grid
-    }
-    else if (e.key === 'ArrowUp') {
-      if (inFav) { i = Math.max(i - 1, 0); } // Up in fav
-      else { i = (i - COLS < favCount) ? favCount - 1 : i - COLS; } // Up in grid, or jump to last fav
-    }
-    else if (e.key === 'ArrowRight') {
-      if (inFav) { i = favCount; } // Jump to start of grid
-      else { i = Math.min(i + 1, items.length - 1); } // Right in grid
-    }
-    else if (e.key === 'ArrowLeft') {
-      if (inFav) { i = Math.max(i - 1, 0); } // Left in fav
-      else { i = (i % COLS === 0) ? favCount - 1 : i - 1; } // Left in grid, or jump to last fav
-    }
-    setSel(i);
+    const gridCount = items.filter(x => x.zone === 'grid').length;
+    const recCount = items.filter(x => x.zone === 'rec').length;
+    const curZone = focusedColumn || items[sel].zone;
+    setSel(navIndex(e.key, sel, curZone, favCount, gridCount, recCount));
     return;
   }
-  if (e.key === 'Enter'){
+
+  if (e.key === 'Tab') {
+    // Modals own their own focus order — never hijack Tab while one is open,
+    // otherwise their buttons/inputs become unreachable by keyboard.
+    if (document.querySelector('#add-tool-modal:not(.hidden), #delete-modal:not(.hidden), #settings-modal:not(.hidden)')) {
+      return; // let the browser move focus natively inside the modal
+    }
+    e.preventDefault();
+    const active = document.activeElement;
+    const sections = [
+      $('#search'),
+      $('#tab-tools'),
+      $('#tab-apps'),
+      $('#close'),
+      $('#favs'),
+      $('#recommended-container'),
+      $('#all-apps-container'),
+      $('#btn-files'),
+      $('#btn-settings'),
+      $('#btn-suspend'),
+      $('#btn-restart'),
+      $('#btn-poweroff'),
+      $('#btn-logout')
+    ].filter(Boolean);
+    // Only visible sections take part in the tab ring
+    const visible = sections.filter(s => s.offsetParent !== null);
+    if (!visible.length) return;
+    let curIdx = visible.indexOf(active);
+    if (curIdx < 0) {
+      // Focus is on a card/row inside a section — fall back to that section's own position
+      const owner = active && active.closest ? active.closest('#favs,#recommended-container,#all-apps-container') : null;
+      if (owner) curIdx = visible.indexOf(owner);
+    }
+    let nextIdx;
+    if (e.shiftKey) nextIdx = (curIdx <= 0) ? visible.length - 1 : curIdx - 1;
+    else nextIdx = (curIdx < 0 || curIdx === visible.length - 1) ? 0 : curIdx + 1;
+    visible[nextIdx].focus();
+    return;
+  }
+
+  if (e.key === 'Enter') {
+    // Enter inside a text field belongs to the field (submit the modal form),
+    // not to the launcher — never launch an app while the user is typing.
+    if (isTypingField(e.target)) return;
     e.preventDefault();
     if (sel >= 0 && items[sel]) {
-      const it = items[sel];
-      if (it.addCard) { it.addCard.onclick(); return; } // ➕ card: open Add Tool modal
-      if (it.tool) { window.api.runTool(it.app); } else { window.api.launch(it.app); }
+      activateEntry(items[sel]);
       return;
     }
     const active = document.activeElement;
-    if (active && (active.id === 'tab-apps' || active.id === 'tab-tools')) { active.click(); return; }
-    const it = items[0];
-    if (it) { it.tool ? window.api.runTool(it.app) : window.api.launch(it.app); }
+    // If focused element is a button, trigger its click (handles tabs, bottom bar, close, settings, etc.)
+    if (active && active.tagName === 'BUTTON') { active.click(); return; }
+    // Fallback: launch first item
+    activateEntry(items[0]);
   }
 });
 
