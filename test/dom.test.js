@@ -205,6 +205,21 @@ expect('S16 the Recommended column is cleared in the Tools view',
 expect('S16 the Recommended column leaves no stale rows in the Tools view',
   get('S16 recommended has no stale placeholder rows'), 'clean');
 
+console.log('\nGeometry single-source-of-truth — panel fills window, bar never clipped (all 7 anchors)');
+const s17 = JSON.parse(get('S17 bottom-bar anchor matrix'));
+for (const row of s17) {
+  expect(`S17 ${row.anchor}: bottom bar exists`, row.exists, true);
+  expect(`S17 ${row.anchor}: bottom bar display !== 'none'`, row.notHidden, true);
+  expect(`S17 ${row.anchor}: launcherRect == viewport rect (±1px) — panel fills window`,
+    row.fillMatch, true);
+  expect(`S17 ${row.anchor}: barRect.bottom <= innerHeight - 2 (not clipped)`,
+    row.barBottomOk, true);
+}
+// The whole point: the fill invariant holds on EVERY anchor and the bar is never clipped.
+expect('S17 panel fills window + bar visible on all 7 anchors',
+  s17.every(r => r.exists && r.notHidden && r.fillMatch && r.barBottomOk), true);
+expect('S17 exactly 7 anchors asserted', s17.length, 7);
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) {
   console.log('\nDebug output:');

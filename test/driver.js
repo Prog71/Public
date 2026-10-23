@@ -261,5 +261,41 @@
   out.push(['S16 recommended has no stale placeholder rows',
     document.querySelectorAll('#recommended-container .rec-row').length === 0 ? 'clean' : 'stale']);
 
+  // ---- S17: SINGLE SOURCE OF TRUTH — panel FILLS the window (main.js owns geometry) ----
+  // New invariant (P5-A FINAL): the window IS the anchor rectangle and the panel
+  // fills it (inset:0), so for EVERY anchor:
+  //   1. launcherRect == viewport rect   (±1px)  — panel == window == viewport
+  //   2. barRect.bottom <= innerHeight - 2         — bottom bar never clipped
+  //   3. #bottom-bar exists + display !== 'none'
+  // This is independent of the anchor (the anchor only moves/sizes the WINDOW,
+  // which main.js owns), so we assert the fill invariant once and loop over all
+  // 7 anchors calling the real applyAnchor to prove it's geometry-blind.
+  const ANCHORS = ['top-left','top-center','top-right','bottom-left','bottom-center','bottom-right','screen-center'];
+  const L = document.getElementById('launcher');
+  const bb = document.getElementById('bottom-bar');
+  const vp = { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight };
+  const results17 = [];
+  for (const anchor of ANCHORS) {
+    applyAnchor({ anchor, width: vp.w, height: vp.h }); // real (now geometry-blind) path
+    const lr = L.getBoundingClientRect();
+    const br = bb ? bb.getBoundingClientRect() : null;
+    const display = bb ? getComputedStyle(bb).display : null;
+    const fillMatch =
+      Math.abs(lr.x - vp.x) <= 1 && Math.abs(lr.y - vp.y) <= 1 &&
+      Math.abs(lr.width - vp.w) <= 1 && Math.abs(lr.height - vp.h) <= 1;
+    results17.push({
+      anchor,
+      exists: !!bb,
+      notHidden: display !== 'none',
+      display,
+      fillMatch,                       // launcherRect == viewport rect (±1px)
+      barBottomOk: br ? (br.bottom <= vp.h - 2) : false,  // barRect.bottom <= innerHeight - 2
+      barBottom: br ? Math.round(br.bottom) : null,
+      innerH: vp.h,
+      launcherRect: { x: Math.round(lr.x), y: Math.round(lr.y), w: Math.round(lr.width), h: Math.round(lr.height) }
+    });
+  }
+  out.push(['S17 bottom-bar anchor matrix', JSON.stringify(results17)]);
+
   document.title = 'RESULTS:' + JSON.stringify(out);
 })();

@@ -120,5 +120,66 @@ console.log('navIndex — invariant sweep (never out of range, never wrong zone)
   }
 })();
 
+// ---- P5-A incident guard: anchorGeometry invariants (main.js) ----
+// Extract the real anchorGeometry from main.js and run it with a stubbed
+// screen. For EVERY anchor the panel must satisfy
+//   y + height <= workArea.y + workArea.height - MARGIN
+// so the bottom bar is never pushed below the visible panel.
+console.log('\nanchorGeometry — workArea invariants (Step 2 guard)');
+const mainSrc = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+const agMatch = mainSrc.match(/function anchorGeometry\([\s\S]*?\n}/);
+assert.ok(agMatch, 'anchorGeometry not found in main.js');
+const MARGIN = 12;
+const runGeo = (wa) => {
+  const d = { workArea: wa };
+  const screen = { getPrimaryDisplay: () => d };
+  const fn = new Function('screen', agMatch[0] + '; return anchorGeometry;');
+  return fn(screen);
+};
+// A realistic 1920x1080 screen with a 60px bottom dock => workArea 1920x1020.
+const WA = { x: 0, y: 0, width: 1920, height: 1020 };
+const ANCHORS7 = ['top-left','top-center','top-right','bottom-left','bottom-center','bottom-right','screen-center'];
+for (const a of ANCHORS7) {
+  t(`anchor ${a}: panel bottom <= workArea bottom - MARGIN`, () => {
+    const g = runGeo(WA)(a);
+    assert.ok(g.y + g.height <= WA.y + WA.height - MARGIN,
+      `${a}: y(${g.y})+h(${g.height})=${g.y + g.height} exceeds workArea(${WA.height})-MARGIN(${MARGIN})`);
+    assert.ok(g.y >= WA.y && g.x >= WA.x, `${a}: panel origin outside workArea`);
+    assert.ok(g.width > 0 && g.height > 0, `${a}: zero/negative panel size`);
+  });
+}
+t('anchor bottom row: bottom-left.y === bottom-center.y === bottom-right.y', () => {
+  const bl = runGeo(WA)('bottom-left').y;
+  const bc = runGeo(WA)('bottom-center').y;
+  const br = runGeo(WA)('bottom-right').y;
+  assert.strictEqual(bl, bc); assert.strictEqual(bc, br);
+});
+t('anchor top row: y === workArea.y + MARGIN', () => {
+  for (const a of ['top-left','top-center','top-right']) {
+    assert.strictEqual(runGeo(WA)(a).y, WA.y + MARGIN);
+  }
+});
+
+// P5-A FINAL: the window IS the anchor rectangle. Its size must be capped so it
+// ALWAYS fits the work area (≤ workArea − 2·MARGIN) and sits inside it — this is
+// what makes "panel fills window ⇒ bar can't be clipped" hold for every anchor.
+t('FINAL: window (=anchor rect) size fits work area, all 7 anchors', () => {
+  for (const a of ANCHORS7) {
+    const g = runGeo(WA)(a);
+    assert.ok(g.width <= WA.width - 2 * MARGIN, `${a}: width ${g.width} exceeds workArea-${2*MARGIN}`);
+    assert.ok(g.height <= WA.height - 2 * MARGIN, `${a}: height ${g.height} exceeds workArea-${2*MARGIN}`);
+    // Rectangle fully inside the work area.
+    assert.ok(g.x >= WA.x && g.y >= WA.y && g.x + g.width <= WA.x + WA.width && g.y + g.height <= WA.y + WA.height,
+      `${a}: rectangle escapes work area: ${JSON.stringify(g)}`);
+  }
+});
+t('FINAL: bottom anchors sit flush at workArea.bottom − MARGIN − h', () => {
+  const h = runGeo(WA)('bottom-left').height;
+  const expectY = WA.y + WA.height - h - MARGIN;
+  for (const a of ['bottom-left','bottom-center','bottom-right']) {
+    assert.strictEqual(runGeo(WA)(a).y, expectY, `${a} y=${runGeo(WA)(a).y} != ${expectY}`);
+  }
+});
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
