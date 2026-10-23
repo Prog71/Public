@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('api', {
   importScript: () => ipcRenderer.invoke('import-script'),
   getPrefs: () => ipcRenderer.invoke('get-prefs'),
   savePrefs: p => ipcRenderer.send('save-prefs', p),
+  setAnchor: a => ipcRenderer.send('set-anchor', a),
+  onAnchor: cb => ipcRenderer.on('anchor-applied', (e, g) => cb(g)),
   getRecent: () => ipcRenderer.invoke('get-recent'),
   recordLaunch: item => ipcRenderer.send('record-launch', item),
   removeFromRecent: id => ipcRenderer.send('remove-from-recent', id),

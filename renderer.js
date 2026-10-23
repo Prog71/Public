@@ -1,25 +1,50 @@
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// P5-A Step 3: fuzzy search — every query char must appear in the name, in order
+// (e.g. "ff" matches "Firefox"), case-insensitive, allowing letters to be
+// interleaved with spaces/punctuation.
+function fuzzyMatch(query, name) {
+  if (!query) return true;
+  const n = String(name || '').toLowerCase();
+  const q = String(query).toLowerCase();
+  let qi = 0;
+  for (let i = 0; i < n.length && qi < q.length; i++) {
+    if (n[i] === q[qi]) qi++;
+  }
+  return qi === q.length;
+}
 let apps = [], favs = [], tools = [], toolApps = [], view = 'apps', items = [], sel = -1, editingToolId = null, toolToDelete = null, recent = [], focusedColumn = null;
 const COLS = 6;
 
 // ---- P3: layout preferences (local JSON only, never gsettings) ----
-let prefs = { layoutMode: 'standard', showPinned: true, showSearch: true, showToolsTab: true, iconSize: 'medium' };
+let prefs = { layoutMode: 'standard', showPinned: true, showSearch: true, showToolsTab: true, iconSize: 'medium', windowAnchor: 'bottom-left', showHeaderText: true };
 function applyPrefs(){
   const L = $('#launcher');
   L.classList.toggle('layout-compact', prefs.layoutMode === 'compact');
   L.classList.toggle('hide-pinned', !prefs.showPinned);
   L.classList.toggle('hide-search', !prefs.showSearch);
   L.classList.toggle('hide-tools', !prefs.showToolsTab);
+  L.classList.toggle('no-header-text', !prefs.showHeaderText);
   const grid = $('#grid');
   L.classList.remove('icons-small', 'icons-medium', 'icons-large');
   L.classList.add('icons-' + (prefs.iconSize || 'medium'));
   const map = [['pref-show-pinned', prefs.showPinned], ['pref-show-search', prefs.showSearch], ['pref-show-tools', prefs.showToolsTab]];
   for (const [id, v] of map) { const c = document.getElementById(id); if (c) c.checked = !!v; }
+  const ht = document.getElementById('pref-show-header-text'); if (ht) ht.checked = !!prefs.showHeaderText;
   document.querySelectorAll('#seg-layout button').forEach(b => b.classList.toggle('active', b.dataset.layout === prefs.layoutMode));
   document.querySelectorAll('#seg-icons button').forEach(b => b.classList.toggle('active', b.dataset.icons === prefs.iconSize));
+  const ar = document.querySelector('input[name="window-anchor"][value="' + (prefs.windowAnchor || 'bottom-left') + '"]'); if (ar) ar.checked = true;
   if (!prefs.showToolsTab && view === 'tools') setView('apps'); // hidden tab can't stay active
 }
+// P5-A Step 1: apply the anchor geometry main.js computed (authoritative on Wayland).
+function applyAnchor(g){
+  if (!g) return;
+  const L = $('#launcher');
+  L.classList.add('anchored');
+  L.style.setProperty('--panel-left', (g.dx || 0) + 'px');
+  L.style.setProperty('--panel-top', (g.dy || 0) + 'px');
+}
+if (window.api && window.api.onAnchor) window.api.onAnchor(applyAnchor);
 async function loadPrefs(){ try { const p = await window.api.getPrefs(); if (p) { delete p.showRecommended; prefs = { ...prefs, ...p }; } } catch (e) {} applyPrefs(); }
 function persistPrefs(){ try { const clean = { ...prefs }; delete clean.showRecommended; window.api.savePrefs(clean); } catch (e) {} }
 // P3 polish Fix 4: paint real avatar, or styled initial fallback
@@ -92,14 +117,14 @@ function render(){
   favList.innerHTML = ''; grid.innerHTML = ''; items = [];
   if (view === 'apps'){
     $('#grid-title').innerHTML = 'All Applications <span style="color:#5c5c63;font-weight:400;text-transform:none;letter-spacing:0">(right-click to pin)</span>';
-    apps.filter(a => favs.includes(a.id) && (!q || a.name.toLowerCase().includes(q))).forEach(a => {
+    apps.filter(a => favs.includes(a.id) && fuzzyMatch(q, a.name)).forEach(a => {
       const row = document.createElement('div'); row.className = 'fav-row'; row.tabIndex = 0;
       row.innerHTML = (a.icon ? `<img src="file://${esc(a.icon)}">` : '<span></span>') + `<span>${esc(a.name)}</span>`;
       row.onclick = () => activateEntry({ app: a });
       row.oncontextmenu = (e) => ctxMenuApp(e, a);
       favList.appendChild(row); items.push({el:row, app:a, zone:'fav'});
     });
-    apps.filter(a => !favs.includes(a.id) && (!q || a.name.toLowerCase().includes(q))).forEach(a => {
+    apps.filter(a => !favs.includes(a.id) && fuzzyMatch(q, a.name)).forEach(a => {
       const card = document.createElement('div'); card.className = 'card'; card.tabIndex = 0;
       card.innerHTML = (a.icon ? `<img src="file://${esc(a.icon)}">` : '<div class="ph">📦</div>') + `<span title="${esc(a.name)}">${esc(a.name)}</span>`;
       card.onclick = () => activateEntry({ app: a });
@@ -154,7 +179,7 @@ function renderRecommended(q){
   recBox.innerHTML = '';
   recBox.appendChild(recTitle);
   $('#rec-clear').onclick = (e) => { e.stopPropagation(); window.api.clearRecent(); refresh(); };
-  const shown = recent.filter(it => !q || String(it.name || '').toLowerCase().includes(q));
+  const shown = recent.filter(it => fuzzyMatch(q, String(it.name || '')));
   if (shown.length === 0) {
     const ph = document.createElement('div');
     ph.className = 'rec-placeholder';
@@ -313,7 +338,7 @@ function renderModalApps(query) {
   const grid = $('#modal-apps-grid');
   grid.innerHTML = '';
   const q = query.toLowerCase();
-  toolApps.filter(a => !q || a.name.toLowerCase().includes(q)).forEach(a => {
+  toolApps.filter(a => fuzzyMatch(q, a.name)).forEach(a => {
     const card = document.createElement('div'); card.className = 'modal-app-card';
     card.innerHTML = (a.icon ? `<img src="file://${esc(a.icon)}">` : '<div style="font-size:30px"></div>') + `<span>${esc(a.name)}</span>`;
     card.onclick = () => {
@@ -557,6 +582,10 @@ $('#btn-poweroff').onclick = () => window.api.poweroff();
 $('#btn-logout').onclick = () => window.api.logout();
 document.querySelectorAll('#seg-layout button').forEach(b => b.onclick = () => { prefs.layoutMode = b.dataset.layout; applyPrefs(); persistPrefs(); });
 document.querySelectorAll('#seg-icons button').forEach(b => b.onclick = () => { prefs.iconSize = b.dataset.icons; applyPrefs(); persistPrefs(); });
+// P5-A Step 1: Window Position radios — instant reposition + persist
+document.querySelectorAll('input[name="window-anchor"]').forEach(r => r.onchange = () => { prefs.windowAnchor = r.value; applyPrefs(); persistPrefs(); if (window.api.setAnchor) window.api.setAnchor(r.value); });
+// P5-A Step 2: Show Header Text checkbox
+const htc = document.getElementById('pref-show-header-text'); if (htc) htc.onchange = () => { prefs.showHeaderText = htc.checked; applyPrefs(); persistPrefs(); };
 for (const [id, key] of [['pref-show-pinned','showPinned'],['pref-show-search','showSearch'],['pref-show-tools','showToolsTab']]){
   const c = document.getElementById(id);
   if (c) c.onchange = () => { prefs[key] = c.checked; applyPrefs(); setView(view); persistPrefs(); };

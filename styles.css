@@ -31,6 +31,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 }
 #launcher.open { opacity: 1; transform: translateY(0); }
 #launcher.tools-mode { max-width: 800px; margin: 0 auto; }
+/* P5-A Step 1: 7-point window anchor — panel is positioned by exact pixel vars
+   (--panel-left/--panel-top) computed from screen.getPrimaryDisplay() in main.js.
+   top:0 + translateY(130%) keeps the open/close glide animation working. */
+#launcher.anchored { bottom: auto; left: auto; top: 0; left: var(--panel-left, 20px); }
+#launcher.anchored { left: var(--panel-left, 20px); top: var(--panel-top, 0px); }
+/* P5-A Step 2: header text toggle */
+#header-text { display: inline; }
+#launcher.no-header-text #header-text { display: none; }
+/* P5-A: anchor radio grid in the settings modal */
+.anchor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 14px; }
 
 header { display: flex; align-items: center; padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); gap: 15px; }
 .title { font-size: 18px; font-weight: 600; color: #fff; white-space: nowrap; }
@@ -114,8 +124,9 @@ main { flex: 1; padding: 15px; overflow: hidden; display: flex; flex-direction: 
 #jumpers span.dim:hover { color: #5c5c63; background: transparent; }
 #grid-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 10px; font-weight: 600; }
 
-.card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 15px 10px; display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer; position: relative; min-height: 118px; max-height: 150px; transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease; }
-.card:hover { background: rgba(255,255,255,0.08); transform: scale(1.04); box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
+.card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 15px 10px; display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer; position: relative; min-height: 118px; max-height: 150px; transition: transform 0.18s cubic-bezier(.16,.84,.28,1), background-color 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+.card:hover { background: rgba(255,255,255,0.08); transform: scale(1.03); box-shadow: 0 8px 24px rgba(0,0,0,0.25); border-color: rgba(255,255,255,0.12); }
+.fav-row, .rec-row { transition: background-color 0.18s ease, transform 0.18s ease; }
 .card.sel { background: rgba(78, 161, 255, 0.2) !important; border: 1px solid #4ea1ff !important; }
 .card:focus { outline: none; }
 .card img { width: 48px; height: 48px; margin-bottom: 10px; border-radius: 8px; }

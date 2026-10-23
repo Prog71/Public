@@ -3,7 +3,7 @@
 <div id="backdrop"></div>
 <div id="launcher">
   <header>
-    <div class="title">⌘ Launcher</div>
+    <div class="title">⌘ <span id="header-text">Launcher</span></div>
     <input id="search" placeholder="Search apps, tools, commands…" autocomplete="off">
     <button id="tab-tools" class="tab">⚙ Tools<span id="tab-tools-dot" class="hidden"></span></button>
     <button id="tab-apps" class="tab active">▦ Apps</button>
@@ -53,6 +53,22 @@
         <button data-icons="medium" class="tab">Medium</button>
         <button data-icons="large" class="tab">Large</button>
       </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-label">Window Position</div>
+      <div class="seg anchor-grid" id="seg-anchor">
+        <label class="chk"><input type="radio" name="window-anchor" value="top-left"> Top Left</label>
+        <label class="chk"><input type="radio" name="window-anchor" value="top-center"> Top Center</label>
+        <label class="chk"><input type="radio" name="window-anchor" value="top-right"> Top Right</label>
+        <label class="chk"><input type="radio" name="window-anchor" value="bottom-left"> Bottom Left</label>
+        <label class="chk"><input type="radio" name="window-anchor" value="bottom-center"> Bottom Center</label>
+        <label class="chk"><input type="radio" name="window-anchor" value="bottom-right"> Bottom Right</label>
+        <label class="chk"><input type="radio" name="window-anchor" value="center"> Screen Center</label>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-label">Header</div>
+      <label class="chk"><input type="checkbox" id="pref-show-header-text"> Show Header Text</label>
     </div>
   </div>
 </div>

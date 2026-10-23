@@ -9,7 +9,7 @@ const TOOLS_DIR = path.join(os.homedir(), '.config', 'system-launcher', 'tools')
 const PREFS_FILE = path.join(os.homedir(), '.config', 'glass-launcher', 'preferences.json');
 const RECENT_FILE = path.join(os.homedir(), '.config', 'glass-launcher', 'recent.json');
 const RECENT_LIMIT = 8;
-const DEFAULT_PREFS = { layoutMode: 'standard', showPinned: true, showSearch: true, showToolsTab: true, iconSize: 'medium' };
+const DEFAULT_PREFS = { layoutMode: 'standard', showPinned: true, showSearch: true, showToolsTab: true, iconSize: 'medium', windowAnchor: 'bottom-left', showHeaderText: true };
 let win = null, isOpen = false, toolProc = null, isPickerOpen = false;
 let hideTimer = null, blurTimer = null, dockCloseAt = 0; // deferred-hide plumbing + dock-click detection
 
@@ -53,17 +53,72 @@ function createWindow() {
   });
 }
 
+function readPrefs() { try { return { ...DEFAULT_PREFS, ...JSON.parse(fs.readFileSync(PREFS_FILE, 'utf8')) }; } catch (e) { return { ...DEFAULT_PREFS }; } }
+
+// P5-A Step 1: 7-point window anchor.
+// Compute the panel's target origin in *screen* coordinates from the primary
+// display's workArea (corners/edges, honoring the dock) or bounds (screen center,
+// ignoring the dock so it floats in the true visual center). We deliberately do
+// NOT auto-detect the OS dock position — the workArea already excludes it, which
+// is the correct signal on both X11 and Wayland.
+function anchorGeometry(anchor) {
+  const d = screen.getPrimaryDisplay();
+  const wa = d.workArea;   // excludes the dock
+  const b = d.bounds;      // full screen
+  const waSize = d.size || { width: wa.width, height: wa.height };
+  const M = 20;                 // margin from the work-area edges
+  const DOCK = 120;            // space reserved above the bottom dock
+  // Panel size mirrors the CSS (#launcher: 90vw capped 1000, 65vh capped 600).
+  const w = Math.min(1000, waSize.width - 2 * M);
+  const h = Math.min(600, waSize.height - 2 * M);
+  let x, y;
+  const left = wa.x + M;
+  const center = wa.x + Math.round((wa.width - w) / 2);
+  const right = wa.x + wa.width - w - M;
+  const top = wa.y + M;
+  const bottom = wa.y + wa.height - h - DOCK;
+  switch (anchor) {
+    case 'top-left': x = left; y = top; break;
+    case 'top-center': x = center; y = top; break;
+    case 'top-right': x = right; y = top; break;
+    case 'bottom-right': x = right; y = bottom; break;
+    case 'bottom-center': x = center; y = bottom; break;
+    case 'center':
+      // Exact visual center of the FULL screen (ignore the dock/taskbar offset).
+      x = Math.round(b.x + (b.width - w) / 2);
+      y = Math.round(b.y + (b.height - h) / 2);
+      break;
+    case 'bottom-left':
+    default: x = left; y = bottom; break;
+  }
+  return { x: Math.round(x), y: Math.round(y), width: w, height: h };
+}
+
 function positionWin() {
-  // On Wayland, Mutter ignores client x/y (setBounds position is a no-op) and centers
-  // any window, so the old 1000x600 window floated mid-screen. Instead, size the
-  // transparent window to the whole work area — size IS honored on Wayland — so it
-  // fills the screen and the CSS panel (left: 20px, bottom: 120px) lands at the true
-  // bottom-left, above the dock (Windows Start-button position). The full-screen
-  // backdrop then catches every click outside the panel (click-away-to-close), while
-  // blur still closes the launcher when another window gets focus.
+  // On Wayland, Mutter ignores client x/y (setBounds position is a no-op) and
+  // centers any window, so a 1000x600 window floated mid-screen. Instead we size
+  // the transparent window to the whole work area — size IS honored on Wayland —
+  // so it fills the screen and the CSS panel lands at the chosen anchor. The
+  // full-screen backdrop then catches every click outside the panel
+  // (click-away-to-close), while blur still closes when another window gets focus.
+  //
+  // The anchor geometry is computed in screen coordinates (see anchorGeometry())
+  // and applied two ways so it works on every platform:
+  //   1. win.setPosition(x, y) — honored on X11 / Windows / macOS.
+  //   2. Sent to the renderer, which positions the panel inside the window by
+  //      exact pixels (authoritative on Wayland, where (1) is a no-op).
   if (!win) return;
+  const anchor = (readPrefs().windowAnchor) || 'bottom-left';
+  const geo = anchorGeometry(anchor);
   const wa = screen.getPrimaryDisplay().workArea;
+  // Keep the window covering the work area so the backdrop + blur-close still work.
   win.setBounds({ x: wa.x, y: wa.y, width: wa.width, height: wa.height });
+  // Best-effort native positioning for X11 (no-op on Wayland, safe everywhere).
+  try { win.setPosition(geo.x, geo.y); } catch (e) {}
+  // Authoritative positioning: panel offset within the window, in px.
+  const dx = geo.x - wa.x;
+  const dy = geo.y - wa.y;
+  try { win.webContents.send('anchor-applied', { anchor, dx, dy, width: geo.width, height: geo.height }); } catch (e) {}
 }
 
 function showWin() {
@@ -245,8 +300,10 @@ ipcMain.on('add-tool', (e, t) => {
   fs.writeFileSync(path.join(TOOLS_DIR, id + '.json'), JSON.stringify({ ...t, id, order: 999 }, null, 2));
 });
 
-ipcMain.handle('get-prefs', () => { try { return { ...DEFAULT_PREFS, ...JSON.parse(fs.readFileSync(PREFS_FILE, 'utf8')) }; } catch (e) { return { ...DEFAULT_PREFS }; } });
+ipcMain.handle('get-prefs', () => readPrefs());
 ipcMain.on('save-prefs', (e, p) => { try { fs.mkdirSync(path.dirname(PREFS_FILE), { recursive: true }); fs.writeFileSync(PREFS_FILE, JSON.stringify({ ...DEFAULT_PREFS, ...p }, null, 2)); } catch (err) {} });
+// P5-A Step 1: reposition the panel instantly when the Window Position pref changes.
+ipcMain.on('set-anchor', (e, anchor) => { try { if (anchor) positionWin(); } catch (err) {} });
 
 // P4: recent-launch tracking — local JSON only, never gsettings
 function ensureRecentDir(){ try { fs.mkdirSync(path.dirname(RECENT_FILE), { recursive: true }); } catch (e) {} }
